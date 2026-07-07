@@ -328,7 +328,7 @@ export default function ReflectionWorkspace() {
           <header className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <h1 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
-                適応的な振り返りを、2ペインで静かに進める。
+                PBL適応的振り返り支援システム
               </h1>
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                 {phase !== "entry" ? (
