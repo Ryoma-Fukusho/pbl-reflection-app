@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type ChatRole = "user" | "assistant";
 
