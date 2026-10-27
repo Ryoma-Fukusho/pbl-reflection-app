@@ -1,0 +1,187 @@
+<title>PBL振り返りシステム API費用見積</title>
+<style>
+  :root { color-scheme: light; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #000000;
+    font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    font-size: 15px;
+    line-height: 1.9;
+  }
+
+  .doc {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 28px 80px;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  h1 {
+    font-size: 21px;
+    font-weight: bold;
+    color: #000000;
+    margin: 0 0 6px;
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000000;
+    margin: 34px 0 10px;
+    line-height: 1.5;
+  }
+
+  p {
+    margin: 0 0 12px;
+    color: #000000;
+  }
+
+  .sub {
+    margin: 0 0 4px;
+    color: #000000;
+  }
+
+  ul {
+    margin: 0 0 12px;
+    padding-left: 22px;
+    color: #000000;
+  }
+
+  li {
+    margin-bottom: 5px;
+    color: #000000;
+  }
+
+  li:last-child { margin-bottom: 0; }
+
+  a {
+    color: #000000;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+  }
+
+  .tablewrap { overflow-x: auto; margin: 0 0 12px; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 420px;
+    font-size: 14px;
+    color: #000000;
+  }
+
+  th, td {
+    border: 1px solid #000000;
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+    color: #000000;
+  }
+
+  th {
+    font-weight: bold;
+    background: #ffffff;
+  }
+
+  td.n, th.n {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #000000;
+    margin: 14px 0 0;
+  }
+</style>
+
+<div class="doc">
+
+  <h1>Claude API 利用費について（PBL振り返り支援システム）</h1>
+  <p class="sub">卒業研究　2026年8月18日</p>
+  <hr>
+
+  <h2>1. 使用目的</h2>
+  <ul>
+    <li>システムの AI 対話部分を現在の Gemini API から Claude API に変更し、学生に投げかける問いの品質を安定させるため</li>
+    <li>主な用途は開発・デバッグとプロンプト設計</li>
+    <li>9月上旬の予備実験（5〜10名）と、12月前後の本実験（20〜30名）でも使用</li>
+  </ul>
+
+  <h2>2. 使用モデル</h2>
+  <ul>
+    <li>主に <strong>Claude Sonnet 5</strong> を使用（100万トークンあたり 入力 $3 / 出力 $15）</li>
+    <li>応答品質の比較確認のため <strong>Claude Opus 5</strong> も一部使用（同 入力 $5 / 出力 $25）</li>
+    <li>料金表：<a href="https://platform.claude.com/docs/ja/about-claude/pricing" target="_blank" rel="noopener">https://platform.claude.com/docs/ja/about-claude/pricing</a></li>
+  </ul>
+
+  <h2>3. 月々の費用の目安</h2>
+  <p>学生1人が振り返りを1回通しで行うと、約30円かかります。これを基準に月別で試算しました。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>月</th>
+          <th>主な作業</th>
+          <th class="n">費用の目安</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2026年8月</td>
+          <td>Claude API への差し替え・動作確認</td>
+          <td class="n">約 3,500円</td>
+        </tr>
+        <tr>
+          <td>9月</td>
+          <td>予備実験と直前の調整</td>
+          <td class="n">約 5,600円</td>
+        </tr>
+        <tr>
+          <td>10月</td>
+          <td>予備実験の結果を受けたプロンプト再設計</td>
+          <td class="n">約 10,500円</td>
+        </tr>
+        <tr>
+          <td>11月</td>
+          <td>本実験に向けた最終調整</td>
+          <td class="n">約 7,000円</td>
+        </tr>
+        <tr>
+          <td>12月</td>
+          <td>本実験</td>
+          <td class="n">約 3,200円</td>
+        </tr>
+        <tr>
+          <td>2027年1月</td>
+          <td>追加検証・再実行</td>
+          <td class="n">約 2,800円</td>
+        </tr>
+        <tr>
+          <td colspan="2"><strong>6か月の合計</strong></td>
+          <td class="n"><strong>約 36,000円</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul>
+    <li>ご相談したい申請額は <strong>月額上限 12,000円（6か月で 60,000円）</strong> です</li>
+    <li>試算との差額は、為替の変動やプロンプト調整の試行回数が想定を超えた場合に備えた余裕分です</li>
+  </ul>
+
+  <h2>4. 補足</h2>
+  <ul>
+    <li>金額は 1ドル＝160円で換算しています（実勢より円安寄りに置いています）</li>
+    <li>Anthropic の管理画面で月の利用上限を設定できるため、申請額を超える請求は発生しません</li>
+    <li>利用明細はモデルごとに分かれて記載されるため、使用モデルは上記2つに固定します</li>
+    <li>現時点では、学生に継続的に使用させて経過を追う設計にはしていません。実施する場合は1クラス30名・週1回・3か月で月4,000円程度の増加になります</li>
+    <li>トークン数は多めに見積もった概算です。システム側で実際の使用量を記録しているため、予備実験後に実測値で見直せます</li>
+  </ul>
+
+</div>

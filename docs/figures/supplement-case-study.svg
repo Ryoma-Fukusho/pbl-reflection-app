@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" width="800" height="470" font-family="'Yu Gothic','YuGothic','Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="470" fill="#ffffff"/>
+
+  <!-- ===== 問題の捉え直しを示す弧 ===== -->
+  <path d="M104,104 C 44,104 44,348 104,348" fill="none" stroke="#1a1a1a" stroke-width="1.8" marker-end="url(#a)"/>
+  <text x="30" y="226" font-size="12.5" font-weight="bold" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 30 226)">問題の捉え直し</text>
+
+  <!-- ===== 1. problem ===== -->
+  <text x="110" y="48" font-size="11" fill="#555555"><tspan font-family="monospace">problem</tspan>　気になったこと</text>
+  <rect x="110" y="56" width="480" height="96" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.4"/>
+  <text x="128" y="82" font-size="12.5" fill="#1a1a1a">同じチームのメンバーの担当分が当日の朝になっても</text>
+  <text x="128" y="104" font-size="12.5" fill="#1a1a1a">出てこなくて、結局わたしが作り直しました。前から</text>
+  <text x="128" y="126" font-size="12.5" fill="#1a1a1a">何度も期限は共有していたのに、毎回こうなるのが</text>
+  <text x="128" y="145" font-size="12.5" fill="#1a1a1a">正直しんどいです。</text>
+
+  <text x="612" y="92" font-size="12.5" font-weight="bold" fill="#1a1a1a">他責的な問題認識</text>
+  <text x="612" y="113" font-size="11" fill="#555555">原因を他者に求めている</text>
+
+  <!-- ===== 2. feeling_other ===== -->
+  <text x="110" y="188" font-size="11" fill="#555555"><tspan font-family="monospace">feeling_other</tspan>　相手の視点</text>
+  <rect x="110" y="196" width="480" height="62" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.4"/>
+  <text x="128" y="222" font-size="12.5" fill="#1a1a1a">…たぶん、信用されてないと思ったかもしれません。</text>
+  <text x="128" y="244" font-size="12.5" fill="#1a1a1a">相談もなく勝手に作り替えられたら、自分なら嫌です。</text>
+
+  <text x="612" y="218" font-size="12.5" font-weight="bold" fill="#1a1a1a">相手の視点への転換</text>
+  <text x="612" y="239" font-size="11" fill="#555555">自分の行動が相手に</text>
+  <text x="612" y="255" font-size="11" fill="#555555">どう見えたかを考える</text>
+
+  <!-- ===== 3. closing_insight ===== -->
+  <text x="110" y="292" font-size="11" fill="#555555"><tspan font-family="monospace">closing_insight</tspan>　本当の課題</text>
+  <rect x="110" y="300" width="480" height="96" fill="#f2f2f2" stroke="#1a1a1a" stroke-width="2.2"/>
+  <text x="128" y="326" font-size="12.5" fill="#1a1a1a">メンバーが期限を守らないことが問題だと思っていま</text>
+  <text x="128" y="348" font-size="12.5" fill="#1a1a1a">したが、たぶん本当の課題は、わたしが「間に合わな</text>
+  <text x="128" y="370" font-size="12.5" fill="#1a1a1a">いかも」と不安になった時点で、それを相手に言わず</text>
+  <text x="128" y="389" font-size="12.5" fill="#1a1a1a">に抱え込んで先回りしてしまうことです。</text>
+
+  <text x="612" y="336" font-size="12.5" font-weight="bold" fill="#1a1a1a">主体的に向き合うべき課題</text>
+  <text x="612" y="357" font-size="11" fill="#555555">原因が他者から自分の</text>
+  <text x="612" y="373" font-size="11" fill="#555555">行動へと移る</text>
+
+  <!-- ===== 格納先 ===== -->
+  <line x1="350" y1="396" x2="350" y2="416" stroke="#888888" stroke-width="1"/>
+  <text x="350" y="434" font-size="11" text-anchor="middle" fill="#1a1a1a"><tspan font-family="monospace">sessions.closingInsight</tspan></text>
+</svg>

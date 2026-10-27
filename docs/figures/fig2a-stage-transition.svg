@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 810" width="660" height="810" font-family="'Yu Gothic','YuGothic','Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif" font-size="18">
+  <!-- 文字は全て 18px に統一。階層は太字・灰色・等幅で分ける -->
+  <defs>
+    <marker id="a" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+
+  <rect width="660" height="810" fill="#ffffff"/>
+
+  <text x="20" y="50" font-weight="bold" fill="#555555">ALACT モデル上の位置</text>
+
+  <!-- ===== ALACT: 行為 (1) ===== -->
+  <path d="M190,80 L180,80 L180,152 L190,152" fill="none" stroke="#888888" stroke-width="1.5"/>
+  <text x="170" y="122" text-anchor="end" fill="#1a1a1a">行為 (1)</text>
+
+  <!-- ===== ALACT: 行為の振り返り (2) ===== -->
+  <path d="M190,178 L180,178 L180,446 L190,446" fill="none" stroke="#888888" stroke-width="1.5"/>
+  <text x="170" y="306" text-anchor="end" fill="#1a1a1a">行為の</text>
+  <text x="170" y="330" text-anchor="end" fill="#1a1a1a">振り返り (2)</text>
+
+  <!-- ===== ALACT: 本質的諸相への気づき (3) ===== -->
+  <path d="M190,472 L180,472 L180,642 L190,642" fill="none" stroke="#888888" stroke-width="1.5"/>
+  <text x="170" y="551" text-anchor="end" fill="#1a1a1a">本質的諸相への</text>
+  <text x="170" y="575" text-anchor="end" fill="#1a1a1a">気づき (3)</text>
+
+  <!-- ===== ALACT: 行為の選択肢の拡大 (4) ===== -->
+  <path d="M190,668 L180,668 L180,740 L190,740" fill="none" stroke="#888888" stroke-width="1.5"/>
+  <text x="170" y="698" text-anchor="end" fill="#1a1a1a">行為の選択肢の</text>
+  <text x="170" y="722" text-anchor="end" fill="#1a1a1a">拡大 (4)</text>
+
+  <!-- ===== ステージ 1 Keep ===== -->
+  <rect x="200" y="80" width="220" height="72" fill="#dcdcdc" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="110" text-anchor="middle" fill="#555555" font-family="monospace">Keep</text>
+  <text x="310" y="138" text-anchor="middle" font-weight="bold" fill="#1a1a1a">良かったこと</text>
+  <line x1="420" y1="116" x2="432" y2="116" stroke="#888888" stroke-width="1.2"/>
+  <text x="438" y="122" fill="#555555" font-family="monospace">sessions.keep</text>
+
+  <line x1="310" y1="152" x2="310" y2="176" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 2 Problem ===== -->
+  <rect x="200" y="178" width="220" height="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="208" text-anchor="middle" fill="#555555" font-family="monospace">Problem</text>
+  <text x="310" y="236" text-anchor="middle" font-weight="bold" fill="#1a1a1a">気になったこと</text>
+  <line x1="420" y1="214" x2="432" y2="214" stroke="#888888" stroke-width="1.2"/>
+  <text x="438" y="220" fill="#555555" font-family="monospace">sessions.problem</text>
+
+  <line x1="310" y1="250" x2="310" y2="274" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 3 Fact ===== -->
+  <rect x="200" y="276" width="220" height="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="306" text-anchor="middle" fill="#555555" font-family="monospace">Fact</text>
+  <text x="310" y="334" text-anchor="middle" font-weight="bold" fill="#1a1a1a">事実</text>
+
+  <line x1="310" y1="348" x2="310" y2="372" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 4 Feeling_Other ===== -->
+  <rect x="200" y="374" width="220" height="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="404" text-anchor="middle" fill="#555555" font-family="monospace">Feeling_Other</text>
+  <text x="310" y="432" text-anchor="middle" font-weight="bold" fill="#1a1a1a">相手の視点</text>
+
+  <line x1="310" y1="446" x2="310" y2="470" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 5 Essence ===== -->
+  <rect x="200" y="472" width="220" height="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="502" text-anchor="middle" fill="#555555" font-family="monospace">Essence</text>
+  <text x="310" y="530" text-anchor="middle" font-weight="bold" fill="#1a1a1a">本当の願い</text>
+
+  <line x1="310" y1="544" x2="310" y2="568" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 6 Closing_Insight ===== -->
+  <rect x="200" y="570" width="220" height="72" fill="#dcdcdc" stroke="#1a1a1a" stroke-width="1.8"/>
+  <text x="310" y="600" text-anchor="middle" fill="#555555" font-family="monospace">Closing_Insight</text>
+  <text x="310" y="628" text-anchor="middle" font-weight="bold" fill="#1a1a1a">本当の課題</text>
+  <line x1="420" y1="606" x2="432" y2="606" stroke="#888888" stroke-width="1.2"/>
+  <text x="438" y="598" fill="#555555" font-family="monospace">sessions.</text>
+  <text x="438" y="620" fill="#555555" font-family="monospace">closingInsight</text>
+  <text x="438" y="650" font-weight="bold" fill="#1a1a1a">内省の深さを</text>
+  <text x="438" y="672" font-weight="bold" fill="#1a1a1a">測る測定点</text>
+
+  <line x1="310" y1="642" x2="310" y2="666" stroke="#1a1a1a" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ===== ステージ 7 Try_Plan ===== -->
+  <rect x="200" y="668" width="220" height="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="310" y="698" text-anchor="middle" fill="#555555" font-family="monospace">Try_Plan</text>
+  <text x="310" y="726" text-anchor="middle" font-weight="bold" fill="#1a1a1a">行動計画</text>
+
+  <!-- ===== 凡例 ===== -->
+  <rect x="200" y="768" width="22" height="16" fill="#dcdcdc" stroke="#1a1a1a" stroke-width="1.4"/>
+  <text x="230" y="783" fill="#1a1a1a">固定文言</text>
+
+  <rect x="330" y="768" width="22" height="16" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.4"/>
+  <text x="360" y="783" fill="#1a1a1a">AI が生成</text>
+
+  <rect x="475" y="768" width="22" height="16" fill="#ffffff" stroke="#1a1a1a" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="505" y="783" fill="#1a1a1a">問いを出さない</text>
+
+</svg>

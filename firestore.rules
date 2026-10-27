@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// このアプリはクライアントから Firestore を直接読み書きしない。
+// 全ての読み書きは Route Handler が Firebase Admin SDK 経由で行う。
+// Admin SDK はセキュリティルールをバイパスするため、ここは全面 deny でよい。
+//
+// この設計の意図:
+//   - 会話ログの正本がサーバー側にあり、クライアントからの改ざんが原理的に不可能になる
+//   - 書き込み口が Route Handler ただ一つに限定され、監査しやすい
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

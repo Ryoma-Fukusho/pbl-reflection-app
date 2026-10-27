@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PBL適応的振り返り支援システム",
-  description: "LocalStorage と Gemini API で動く PBL 向け 2 ペイン振り返り MVP",
+  title: "振り返りアシスト",
+  description: "コルトハーヘンの ALACT モデルに沿った AI 対話で、PBL の振り返りを支援するシステム",
 };
 
 export default function RootLayout({
