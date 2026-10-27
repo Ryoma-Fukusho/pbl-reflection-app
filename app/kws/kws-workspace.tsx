@@ -381,14 +381,16 @@ export default function KwsWorkspace() {
           </div>
         </Panel>
 
-        <MemoPanel
-          value={memo}
-          onChange={(next) => {
-            setMemo(next);
-            setMemoDirty(true);
-          }}
-          saveState={!session ? "idle" : memoDirty ? "pending" : "saved"}
-        />
+        <div className="flex min-h-0 flex-col lg:w-[22rem] xl:w-[24rem]">
+          <MemoPanel
+            value={memo}
+            onChange={(next) => {
+              setMemo(next);
+              setMemoDirty(true);
+            }}
+            saveState={!session ? "idle" : memoDirty ? "pending" : "saved"}
+          />
+        </div>
       </div>
     </main>
   );

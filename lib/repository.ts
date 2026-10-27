@@ -4,7 +4,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { getDb } from "@/lib/firebase/admin";
 import { getEffort, getModelName, type TokenUsage } from "@/lib/claude";
-import { PROMPT_VERSION } from "@/lib/prompts";
+import { PROMPT_VERSION, type Facilitation } from "@/lib/prompts";
 import type {
   ChatMessage,
   Condition,
@@ -62,6 +62,10 @@ export type MessageInput = {
    * 上限ターン数で次へ進めた場合も、押したボタンをそのまま残す（実際の進行は次の発話の stage で分かる）
    */
   choice?: "continue" | "advance";
+  /** assistant のみ・進め方 B のみ: この問いを出す前のファシリテーターの判断と、その呼び出しのメタ情報 */
+  facilitation?: Facilitation & { latencyMs: number; usage: TokenUsage };
+  /** assistant のみ: 学習者が答えずに（空欄のまま）次のステージへ進んだ直後の問いなら true */
+  skipped?: boolean;
   /** assistant のみ: Claude 呼び出しのメタ情報 */
   latencyMs?: number;
   model?: string;
@@ -112,6 +116,16 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
     content: message.content,
     stage: message.stage,
     generated: message.generated,
+    facilitation: message.facilitation
+      ? {
+          focus: message.facilitation.focus,
+          covered: message.facilitation.covered,
+          nextItem: message.facilitation.next_item,
+          stageDone: message.facilitation.stage_done,
+          flow: message.facilitation.flow,
+          reason: message.facilitation.reason,
+        }
+      : undefined,
   };
 }
 
@@ -263,6 +277,8 @@ export async function appendMessages(params: {
       generated: message.generated,
       composeMs: message.composeMs,
       choice: message.choice,
+      facilitation: message.facilitation,
+      skipped: message.skipped,
       latencyMs: message.latencyMs,
       model: message.model,
       promptVersion: message.promptVersion,

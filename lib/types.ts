@@ -18,7 +18,7 @@ export type SessionStatus = "active" | "completed" | "abandoned";
  *
  * fixed    = 進め方 A。各ステージ1ターンで次へ進む（計6ターン）
  * flexible = 進め方 B。各ステージで「この話を続ける」か「次の問いへ進む」かを学習者が選ぶ。
- *            どちらの場合もステージの順序はサーバーが管理し、飛ばすことはできない
+ *            回数の上限は設けない。ステージの順序はサーバーが管理し、飛ばすことはできない
  */
 export type TurnMode = "fixed" | "flexible";
 
@@ -26,11 +26,6 @@ export function isTurnMode(value: unknown): value is TurnMode {
   return value === "fixed" || value === "flexible";
 }
 
-/**
- * 進め方 B で1つのステージに留まれる上限ターン数。
- * これに達したら学習者の選択によらず次のステージへ進める（対話が終わらなくなるのを防ぐ）。
- */
-export const MAX_TURNS_PER_STAGE = 5;
 
 export type MessageRole = "user" | "assistant";
 
@@ -81,6 +76,26 @@ export type ChatMessage = {
   stage: Stage | null;
   /** AI が生成した本文なら true。ユーザー発言と固定文言（開始文言・締めの問い）は false */
   generated: boolean;
+  /**
+   * 進め方 B の assistant メッセージのみ。この問いを出す前のファシリテーターの判断。
+   * 画面の「振り返りの進み方」に、扱っている問題と聞けた観点を出すのに使う
+   */
+  facilitation?: FacilitationView;
+};
+
+/** ファシリテーターの判断のうち、画面に送るもの */
+export type FacilitationView = {
+  /** 学習者がいま扱っている問題（一文） */
+  focus: string;
+  /** このステージの観点のうち、聞けたもの */
+  covered: string[];
+  /** この問いで聞いている観点。ひととおり聞けていれば空文字 */
+  nextItem: string;
+  /** このステージの観点がだいたい聞けたか */
+  stageDone: boolean;
+  /** 話の状態と判断の理由。学習者には出さず、?debug=1 のときだけ表示する */
+  flow: string;
+  reason: string;
 };
 
 export type SessionSummary = {
@@ -126,7 +141,8 @@ export type PostMessageRequest = {
   memo?: string;
   /**
    * 進め方 B のみ。false なら同じステージで掘り下げる問いを返す（「この話を続ける」）。
-   * 省略時と進め方 A では常に次のステージへ進む
+   * 省略時と進め方 A では常に次のステージへ進む。
+   * 進め方 B では、advance が true なら content を空にできる（答えずに次へ進む）
    */
   advance?: boolean;
 };

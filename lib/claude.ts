@@ -175,15 +175,26 @@ function toClaudeError(error: unknown): ClaudeError {
 export async function generateText(params: {
   systemInstruction: string;
   turns: ClaudeTurn[];
+  /** 指定すると、応答をこの JSON Schema に沿った JSON にさせる（structured outputs） */
+  jsonSchema?: Record<string, unknown>;
 }): Promise<ClaudeResult> {
   const anthropic = getClient();
   const model = getModelName();
 
   // 空文字のテキストブロックは API に拒否される。
   // Firestore 側の欠損でここまで空が流れてきても落ちないように弾いておく。
-  const messages: Anthropic.MessageParam[] = params.turns
-    .filter((turn) => turn.text.trim() !== "")
-    .map((turn) => ({ role: turn.role, content: turn.text }));
+  // 同じ role が続く場合は1つにまとめる。進め方 B で学習者が空欄のまま次へ進むと、
+  // assistant の発話が2つ続くことがあるため。
+  const messages: Anthropic.MessageParam[] = [];
+  for (const turn of params.turns) {
+    if (turn.text.trim() === "") continue;
+    const last = messages[messages.length - 1];
+    if (last && last.role === turn.role && typeof last.content === "string") {
+      last.content = `${last.content}\n\n${turn.text}`;
+    } else {
+      messages.push({ role: turn.role, content: turn.text });
+    }
+  }
 
   if (messages.length === 0) {
     throw new ClaudeError("Claude API に渡す会話が空です。", 500);
@@ -202,7 +213,9 @@ export async function generateText(params: {
       messages,
       // 適応的思考。budget_tokens は Sonnet 5 / Opus 5 では廃止されている
       thinking: { type: "adaptive" },
-      output_config: { effort: getEffort() },
+      output_config: params.jsonSchema
+        ? { effort: getEffort(), format: { type: "json_schema", schema: params.jsonSchema } }
+        : { effort: getEffort() },
     });
 
     message = await stream.finalMessage();

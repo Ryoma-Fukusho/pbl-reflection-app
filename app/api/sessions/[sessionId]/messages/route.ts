@@ -1,7 +1,12 @@
 import type { NextRequest } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth";
-import { generateFormReply, generateStageQuestion } from "@/lib/conversation";
+import {
+  generateFacilitatedQuestion,
+  generateFormReply,
+  generateStageQuestion,
+  isFacilitatedStage,
+} from "@/lib/conversation";
 import { FIXED_MESSAGES } from "@/lib/prompts";
 import {
   appendMessages,
@@ -19,12 +24,7 @@ import {
   readJsonBody,
   readString,
 } from "@/lib/route-utils";
-import {
-  MAX_TURNS_PER_STAGE,
-  isDialogueStage,
-  nextStage,
-  type PostMessageResponse,
-} from "@/lib/types";
+import { isDialogueStage, nextStage, type PostMessageResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,10 +54,9 @@ export async function POST(
     return badRequest("リクエスト形式が不正です。");
   }
 
+  // 進め方 B で「次の問いへ進む」を押した場合だけ、空欄を許す（答えずに次へ進む）。
+  // 許すかどうかはセッションを読んでから判断する
   const content = readString(body.content);
-  if (!content) {
-    return badRequest("入力が空です。");
-  }
 
   const memo = readString(body.memo);
   const composeMs = typeof body.composeMs === "number" && body.composeMs >= 0 ? body.composeMs : undefined;
@@ -72,6 +71,11 @@ export async function POST(
       return conflict("このセッションは既に完了しています。");
     }
 
+    const isFlexible = session.condition === "dialogue" && session.turnMode === "flexible";
+    if (!content && !(isFlexible && wantsAdvance && session.stage !== "closing_insight")) {
+      return badRequest("入力が空です。");
+    }
+
     const history = await getMessages(sessionId);
     const startSeq = history.length;
 
@@ -84,41 +88,37 @@ export async function POST(
         return conflict("対話は完了しています。Try の生成に進んでください。");
       }
 
-      const userMessage: MessageInput = {
-        role: "user",
-        content,
-        stage: currentStage,
-        generated: false,
-        composeMs,
-        choice: session.turnMode === "flexible" ? (wantsAdvance ? "advance" : "continue") : undefined,
-      };
+      // 空欄のまま次へ進んだ場合は、学習者の発話を記録しない
+      const userMessage: MessageInput | null = content
+        ? {
+            role: "user",
+            content,
+            stage: currentStage,
+            generated: false,
+            composeMs,
+            choice: isFlexible ? (wantsAdvance ? "advance" : "continue") : undefined,
+          }
+        : null;
 
       // ステージごとに、回答をセッションの対応フィールドへ写す。
       // 統制群と同じ keep / problem フィールドに入るので、条件間で同じ比較ができる。
       // 進め方 B では同じステージで複数回答えることがあるので、改行でつなげて全て残す。
-      const append = (previous: string) => (previous ? `${previous}\n${content}` : content);
+      const append = (previous: string) => (!content ? previous : previous ? `${previous}\n${content}` : content);
       const updated = {
         keep: currentStage === "keep" ? append(session.keep) : session.keep,
         problem: currentStage === "problem" ? append(session.problem) : session.problem,
         memo: memo || session.memo,
       };
 
-      // 次のステージへ進むか、同じステージで掘り下げるか。
-      // 進め方 A は常に進む。進め方 B は学習者の選択に従うが、締めの問いは1回で答えるステージで、
-      // 上限ターン数に達したステージも先へ進める。
-      const turnsInStage =
-        history.filter((message) => message.role === "user" && message.stage === currentStage).length + 1;
-      const stay =
-        session.turnMode === "flexible" &&
-        !wantsAdvance &&
-        currentStage !== "closing_insight" &&
-        turnsInStage < MAX_TURNS_PER_STAGE;
-
+      // 進め方 A は常に次へ進む。進め方 B は学習者の選択に従う（回数の上限は設けない）。
+      // 締めの問いは1回で答えるステージなので、B でも次へ進める。
+      const stay = isFlexible && !wantsAdvance && currentStage !== "closing_insight";
       const next = stay ? currentStage : nextStage(currentStage);
+      const turnCount = session.turnCount + (userMessage ? 1 : 0);
 
       const sessionPatch: Record<string, unknown> = {
         stage: next,
-        turnCount: session.turnCount + 1,
+        turnCount,
         keep: updated.keep,
         problem: updated.problem,
         memo: updated.memo,
@@ -129,22 +129,25 @@ export async function POST(
         sessionPatch.closingInsight = content;
       }
 
-      const outgoing: MessageInput[] = [userMessage];
+      const outgoing: MessageInput[] = userMessage ? [userMessage] : [];
+      const sofar = [...history, ...outgoing];
 
-      if (stay) {
-        // 同じステージの中で、直前の回答をさらに掘り下げる問いを生成させる
-        outgoing.push(await generateStageQuestion(updated, [...history, userMessage], currentStage, true));
-      } else if (next === "closing_insight") {
+      if (next === "closing_insight") {
         // 締めの問いは AI に生成させず固定文言を使う（全参加者に同一の問いを提示するため）
         outgoing.push({
           role: "assistant",
           content: FIXED_MESSAGES.closing_insight,
           stage: "closing_insight",
           generated: false,
+          skipped: !userMessage || undefined,
         });
+      } else if (next !== "try_plan" && isFlexible && isFacilitatedStage(next)) {
+        // 進め方 B: ファシリテーターの判断を経て問いを出す。stay なら同じステージの続き
+        const question = await generateFacilitatedQuestion(updated, sofar, next, !stay);
+        outgoing.push({ ...question, skipped: !userMessage || undefined });
       } else if (next !== "try_plan") {
-        // 直前のユーザー発言を含めた履歴を渡して、それに応答する問いを生成させる
-        outgoing.push(await generateStageQuestion(updated, [...history, userMessage], next));
+        // 進め方 A: 直前のユーザー発言を含めた履歴を渡して、それに応答する問いを生成させる
+        outgoing.push(await generateStageQuestion(updated, sofar, next));
       }
       // next === "try_plan" のときは新たな問いを出さず、Try 生成を待つ
 
@@ -160,7 +163,7 @@ export async function POST(
           ...toSummary(session),
           ...updated,
           stage: next,
-          turnCount: session.turnCount + 1,
+          turnCount,
           closingInsight: currentStage === "closing_insight" ? content : session.closingInsight,
         },
         messages: stored.map(toChatMessage),

@@ -18,6 +18,7 @@ export default function Composer({
   placeholder,
   submitLabel,
   continueLabel,
+  allowEmptySubmit = false,
   loadingLabel = "応答を待っています",
   hint = "Enter は改行です。送信はボタンから。",
   actions,
@@ -34,6 +35,8 @@ export default function Composer({
    * 押すと onSubmit に advance: false が渡る
    */
   continueLabel?: string;
+  /** true なら、送信ボタン（continueLabel ではない方）を空欄でも押せる。進め方 B で答えずに次へ進むため */
+  allowEmptySubmit?: boolean;
   loadingLabel?: string;
   /** 入力欄の下に出す説明 */
   hint?: ReactNode;
@@ -58,7 +61,8 @@ export default function Composer({
 
   const submit = useCallback(
     (advance: boolean) => {
-      if (isLoading || !value.trim()) {
+      // 「この話を続ける」は何か書かないと押せない。送信ボタンは allowEmptySubmit なら空欄でも押せる
+      if (isLoading || (!value.trim() && !(advance && allowEmptySubmit))) {
         return;
       }
 
@@ -66,7 +70,7 @@ export default function Composer({
       composeStartedAtRef.current = null;
       onSubmit(startedAt === null ? 0 : Date.now() - startedAt, advance);
     },
-    [isLoading, value, onSubmit]
+    [isLoading, value, allowEmptySubmit, onSubmit]
   );
 
   const handleSubmit = useCallback(
@@ -98,7 +102,7 @@ export default function Composer({
               {continueLabel}
             </Button>
           ) : null}
-          <Button type="submit" disabled={isLoading || !value.trim()}>
+          <Button type="submit" disabled={isLoading || (!value.trim() && !allowEmptySubmit)}>
             {isLoading ? loadingLabel : submitLabel}
           </Button>
         </div>

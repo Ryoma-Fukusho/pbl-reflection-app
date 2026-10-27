@@ -20,7 +20,7 @@ export default function MemoPanel({
     saveState === "pending" ? "未保存" : saveState === "saved" ? "保存済み" : "自動保存";
 
   return (
-    <aside className="flex min-h-0 flex-col lg:w-[22rem] xl:w-[24rem]">
+    <aside className="flex min-h-0 flex-1 flex-col">
       <Panel className="flex-1 p-5">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--line)] pb-3">
           <h2 className="text-[length:var(--fs-title)] font-semibold text-[var(--text)]">メモ</h2>

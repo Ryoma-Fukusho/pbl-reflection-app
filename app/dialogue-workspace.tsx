@@ -6,10 +6,10 @@ import { ApiError, useAuth } from "@/app/components/auth-gate";
 import ChatLog, { TryPlanCard } from "@/app/components/chat-log";
 import Composer from "@/app/components/composer";
 import MemoPanel from "@/app/components/memo-panel";
+import ReflectionGuide from "@/app/components/reflection-guide";
 import { AppHeader, Button, Notice, Panel, StepRail } from "@/app/components/ui";
 import {
   DIALOGUE_STAGES,
-  MAX_TURNS_PER_STAGE,
   type ChatMessage,
   type CompleteSessionResponse,
   type CreateSessionResponse,
@@ -47,7 +47,7 @@ const TURN_MODE_OPTIONS: { mode: TurnMode; title: string; description: string }[
   {
     mode: "flexible",
     title: "進め方B: 話す量を自分で決める",
-    description: `観点ごとに、もう少し話すか次の問いへ進むかを自分で選べます(1つの観点で最大${MAX_TURNS_PER_STAGE}回)。`,
+    description: "観点ごとに、もう少し話すか次の問いへ進むかを自分で選べます。話すことがなければ、空欄のまま次へ進めます。",
   },
 ];
 
@@ -90,6 +90,13 @@ export default function DialogueWorkspace() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  // ?debug=1 のときだけ、ファシリテーターの判断の中身（話の状態と理由）を出す。テストとデモ用
+  const [debug, setDebug] = useState(false);
+
+  useEffect(() => {
+    const enabled = new URLSearchParams(window.location.search).get("debug") === "1";
+    queueMicrotask(() => setDebug(enabled));
+  }, []);
 
   // 再読み込みで画面が消えないよう、表示用のスナップショットをローカルにも持つ。
   // ただしデータの正本はあくまで Firestore 側。
@@ -166,22 +173,27 @@ export default function DialogueWorkspace() {
     async (composeMs: number, advance: boolean) => {
       if (!session || isLoading) return;
 
+      // 空欄で送れるのは、進め方 B で「次の問いへ進む」を押したときだけ（答えずに次へ進む）
       const content = input.trim();
-      if (!content) return;
+      if (!content && !(session.turnMode === "flexible" && advance)) return;
 
       // 送信中も自分の発言はすぐ見えるようにしておく。
-      // サーバーが確定した内容で後から差し替える。
-      const optimistic: ChatMessage = {
-        id: `pending-${Date.now()}`,
-        seq: messages.length,
-        role: "user",
-        content,
-        stage: session.stage,
-        generated: false,
-      };
+      // サーバーが確定した内容で後から差し替える。空欄で進むときは出さない。
+      const optimistic: ChatMessage | null = content
+        ? {
+            id: `pending-${Date.now()}`,
+            seq: messages.length,
+            role: "user",
+            content,
+            stage: session.stage,
+            generated: false,
+          }
+        : null;
 
       setInput("");
-      setMessages((current) => [...current, optimistic]);
+      if (optimistic) {
+        setMessages((current) => [...current, optimistic]);
+      }
       setError("");
       setIsLoading(true);
 
@@ -192,13 +204,13 @@ export default function DialogueWorkspace() {
         );
 
         setMessages((current) => [
-          ...current.filter((message) => message.id !== optimistic.id),
+          ...current.filter((message) => message.id !== optimistic?.id),
           ...data.messages,
         ]);
         setSession(data.session);
         setMemoDirty(false);
       } catch (sendError) {
-        setMessages((current) => current.filter((message) => message.id !== optimistic.id));
+        setMessages((current) => current.filter((message) => message.id !== optimistic?.id));
         setInput(content);
         handleApiError(sendError, "送信に失敗しました。");
       } finally {
@@ -250,10 +262,11 @@ export default function DialogueWorkspace() {
     stage && stage !== "try_plan" ? DIALOGUE_STAGES.indexOf(stage) : DIALOGUE_STAGES.length;
 
   // 進め方 B で「この話を続ける」を出すか。締めの問いは1回で答えるので出さない。
-  // 上限の判定はサーバーも行うが、押しても続けられないボタンは最初から出さない。
-  const turnsInStage = messages.filter((message) => message.role === "user" && message.stage === stage).length;
   const isFlexibleStage = session?.turnMode === "flexible" && stage !== "closing_insight" && stage !== "try_plan";
-  const canContinue = isFlexibleStage && turnsInStage + 1 < MAX_TURNS_PER_STAGE;
+  // 今のステージで最後に出た問いの、ファシリテーターの判断
+  const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
+  const facilitation = lastQuestion?.stage === stage ? lastQuestion?.facilitation : undefined;
+  const stageLooksDone = isFlexibleStage && facilitation?.stageDone === true;
 
   /*
    * 開始前は画面いっぱいに引き伸ばさない。
@@ -402,12 +415,13 @@ export default function DialogueWorkspace() {
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
                     submitLabel={isFlexibleStage ? "次の問いへ進む" : "送信"}
-                    continueLabel={canContinue ? "この話を続ける" : undefined}
+                    continueLabel={isFlexibleStage ? "この話を続ける" : undefined}
+                    allowEmptySubmit={isFlexibleStage}
                     hint={
-                      canContinue
-                        ? "まだ話し足りなければ「この話を続ける」、話し終えたら「次の問いへ進む」で送信します。"
+                      stageLooksDone
+                        ? "この観点はだいたい聞けました。次の問いへ進んでもかまいません。"
                         : isFlexibleStage
-                          ? "この観点で話せるのはここまでです。送信すると次の問いへ進みます。"
+                          ? "まだ話し足りなければ「この話を続ける」、話し終えたら「次の問いへ進む」。話すことがなければ空欄のまま進めます。"
                           : undefined
                     }
                     actions={
@@ -422,14 +436,24 @@ export default function DialogueWorkspace() {
           </div>
         </Panel>
 
-        <MemoPanel
-          value={memo}
-          onChange={(next) => {
-            setMemo(next);
-            setMemoDirty(true);
-          }}
-          saveState={!session ? "idle" : memoDirty ? "pending" : "saved"}
-        />
+        <div className="flex min-h-0 flex-col gap-4 lg:w-[22rem] xl:w-[24rem]">
+          {session ? (
+            <ReflectionGuide
+              stage={session.stage}
+              turnMode={session.turnMode}
+              facilitation={facilitation}
+              debug={debug}
+            />
+          ) : null}
+          <MemoPanel
+            value={memo}
+            onChange={(next) => {
+              setMemo(next);
+              setMemoDirty(true);
+            }}
+            saveState={!session ? "idle" : memoDirty ? "pending" : "saved"}
+          />
+        </div>
       </div>
     </main>
   );
