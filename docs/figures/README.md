@@ -1,13 +1,15 @@
 # 論文用 図版
 
+> 2026-09 の学会論文（JSiSE 研究報告）用の図と、その作り方の記録。当時の実装（プロンプト v2、6ターン固定）に基づいており、今の仕様とは一致しない。
+
 本文に載せる図は **2つ**。図2 のみ (a)(b) の2枚組。
-`docs/figures/` に SVG が原本としてあり、同名 `.png` は倍率2倍の写し。
+このフォルダに SVG が原本としてあり、同名 `.png` は倍率2倍の写し。
 
 | ファイル | 図 | 図が証明すること |
 |---|---|---|
-| `figures/fig1-system-architecture.svg` | 図1　システム構成図 | **非公開性の技術的証明**。Firestore への直接書き込みを遮断し、サーバー経由でログを一元管理していること |
-| `figures/fig2a-stage-transition.svg` | 図2(a)　ステージ遷移 | ALACT モデルに対応する6ステージを決定的に進行させていること |
-| `figures/fig2b-fixed-vs-generated.svg` | 図2(b)　固定文言と生成文言 | **条件統制とプロンプト設計の明示**。両端を固定し中間のみ生成させる構造 |
+| `fig1-system-architecture.svg` | 図1　システム構成図 | **非公開性の技術的証明**。Firestore への直接書き込みを遮断し、サーバー経由でログを一元管理していること |
+| `fig2a-stage-transition.svg` | 図2(a)　ステージ遷移 | ALACT モデルに対応する6ステージを決定的に進行させていること |
+| `fig2b-fixed-vs-generated.svg` | 図2(b)　固定文言と生成文言 | **条件統制とプロンプト設計の明示**。両端を固定し中間のみ生成させる構造 |
 
 ### 本文では使わない補足図
 
@@ -15,8 +17,8 @@
 
 | ファイル | 内容 |
 |---|---|
-| `figures/supplement-turn-sequence.svg` | 1ターンの処理シーケンス |
-| `figures/supplement-case-study.svg` | 模擬対話ログのケーススタディ |
+| `supplement-turn-sequence.svg` | 1ターンの処理シーケンス |
+| `supplement-case-study.svg` | 模擬対話ログのケーススタディ |
 
 ---
 
@@ -30,7 +32,7 @@
 | 2 | `uid` による所有者検証で、自分以外のセッションは取得できない | 他者の目に触れない非公開環境 |
 
 **2 は口頭説明ではなく実装で担保されている。** `getOwnedSession(sessionId, uid)`
-（[lib/repository.ts](../lib/repository.ts)）が uid の一致しないセッションを返さないため、
+（[lib/repository.ts](../../lib/repository.ts)）が uid の一致しないセッションを返さないため、
 他の参加者のログは取得経路そのものが存在しない。
 「心理的安全性の高い非公開環境」をスローガンでなく技術で示すには、
 この所有者検証を図に入れておく必要がある。
@@ -43,7 +45,7 @@
 
 ### 図2(a)
 
-6ステージと ALACT モデルの対応。割り当ては [prompt-design.md](./prompt-design.md) §3.1 が正本。
+6ステージと ALACT モデルの対応。割り当ては [prompt-design.md](../prompt-design.md) §3.1 が正本。
 
 | ステージ | ALACT 上の位置 |
 |---|---|
@@ -58,7 +60,7 @@
 
 ### 図2(b)
 
-AI の発話7つの固定・生成の別。[prompt-design.md](./prompt-design.md) §2 が正本。
+AI の発話7つの固定・生成の別。[prompt-design.md](../prompt-design.md) §2 が正本。
 
 **問いとして自由に生成されるのは中間の4つだけ。** 7番目の Try も `generated: true` だが、
 `TRY_PLAN_INSTRUCTION` が新規の助言を禁じているため「自由な生成」ではなく
