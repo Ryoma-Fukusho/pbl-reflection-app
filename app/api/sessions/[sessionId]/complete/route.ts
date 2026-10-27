@@ -19,7 +19,6 @@ export const maxDuration = 60;
 
 /**
  * 対話を締めて Try（次回の行動計画）を生成し、セッションを完了状態にする。
- * 実験群・統制群のどちらも同じ経路を通る。
  */
 export async function POST(
   request: NextRequest,
@@ -43,7 +42,7 @@ export async function POST(
       return conflict("このセッションは既に完了しています。");
     }
 
-    if (session.condition === "dialogue" && session.stage !== "try_plan") {
+    if (session.stage !== "try_plan") {
       return conflict("対話が最後まで終わっていません。");
     }
 
@@ -54,7 +53,7 @@ export async function POST(
 
     const context = { keep: session.keep, problem: session.problem, memo: memo || session.memo };
 
-    // Try のメッセージには常に stage: "try_plan" を付ける（統制群も同じ）。
+    // Try のメッセージには常に stage: "try_plan" を付ける。
     // 全文の記録としては messages に残しつつ、UI ではこの印を頼りに
     // チャットログから除いて専用カードとして1回だけ表示する。
     const plan = await generateTryPlan(context, history, "try_plan");

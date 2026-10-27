@@ -1,9 +1,5 @@
 /**
- * 画面の共通部品。
- *
- * 対話版（/）と KWS フォーム版（/kws）は比較実験の実験条件と統制条件にあたる。
- * 片方だけ見た目が良いと「対話の効果」と「画面の質の差」が交絡するため、
- * 枠・ヘッダ・進行表示・通知はここに集約して、両条件で必ず同じものを使う。
+ * 画面の共通部品。枠・ヘッダ・進行表示・通知・ボタン・入力欄の見た目をここに集約する。
  */
 
 import type { ReactNode } from "react";
@@ -24,14 +20,6 @@ export function CheckMark({ className = "h-2.5 w-2.5" }: { className?: string })
   );
 }
 
-/** 開閉の向き。details の ▼ もフォント依存なので描画に置き換える。 */
-export function Chevron({ className = "h-2.5 w-2.5" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 10 10" fill="none" aria-hidden>
-      <path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="square" />
-    </svg>
-  );
-}
 
 /* ------------------------------------------------------------------ 枠 */
 
@@ -51,8 +39,7 @@ export function Panel({ className = "", children }: { className?: string; childr
 /**
  * 画面上端の帯。
  *
- * 論文に画面を載せるため、ログイン中のアドレスと条件間の導線は出さない。
- * 条件の切り替えは URL（/ と /kws）で行う。
+ * 論文に画面を載せるため、ログイン中のアドレスは出さない。
  */
 export function AppHeader({
   onSignOut,
@@ -212,6 +199,6 @@ export function Button({
 
 /* ------------------------------------------------------------------ 入力欄 */
 
-/** 対話入力・メモ・KWS フォームで共通の見た目にする。 */
+/** 対話入力とメモで共通の見た目にする。 */
 export const FIELD_CLASS =
   "w-full resize-none rounded-[var(--r-md)] border border-[var(--line-strong)] bg-[var(--surface-1)] px-3 py-3 text-[length:var(--fs-body)] leading-7 text-[var(--text)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]";

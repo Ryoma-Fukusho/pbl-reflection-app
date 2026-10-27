@@ -7,7 +7,6 @@ import { getEffort, getModelName, type TokenUsage } from "@/lib/claude";
 import { PROMPT_VERSION, type Facilitation } from "@/lib/prompts";
 import type {
   ChatMessage,
-  Condition,
   MessageRole,
   SessionStatus,
   SessionSummary,
@@ -35,7 +34,6 @@ const APP_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev";
 export type SessionRecord = {
   sessionId: string;
   uid: string;
-  condition: Condition;
   turnMode: TurnMode;
   status: SessionStatus;
   stage: Stage | null;
@@ -95,7 +93,6 @@ function text(value: unknown): string {
 export function toSummary(record: SessionRecord): SessionSummary {
   return {
     sessionId: record.sessionId,
-    condition: record.condition,
     turnMode: record.turnMode,
     status: record.status,
     stage: record.stage,
@@ -131,7 +128,6 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
 
 export async function createSession(params: {
   uid: string;
-  condition: Condition;
   turnMode: TurnMode;
   stage: Stage | null;
   keep: string;
@@ -142,7 +138,6 @@ export async function createSession(params: {
 
   await ref.set({
     uid: params.uid,
-    condition: params.condition,
     turnMode: params.turnMode,
     status: "active" satisfies SessionStatus,
     stage: params.stage,
@@ -186,8 +181,7 @@ function toRecord(sessionId: string, data: FirebaseFirestore.DocumentData | unde
   return {
     sessionId,
     uid: text(data?.uid),
-    condition: data?.condition === "dialogue" ? "dialogue" : "form",
-    // v3 より前のセッションには turnMode が無い。当時は全て1ステージ1ターンだった
+    // 進め方を選べるようになる前のセッションには turnMode が無い。当時は全て1ステージ1ターンだった
     turnMode: data?.turnMode === "flexible" ? "flexible" : "fixed",
     status: (data?.status as SessionStatus) ?? "active",
     stage: (data?.stage as Stage | null) ?? null,

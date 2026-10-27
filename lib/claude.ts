@@ -20,8 +20,7 @@ export type ClaudeTurn = {
 };
 
 /**
- * トークン使用量。Gemini の promptTokenCount / candidatesTokenCount にあたるものが
- * Claude では input_tokens / output_tokens。合計は API から返らないので自分で足す。
+ * トークン使用量。合計は API から返らないので input_tokens と output_tokens を自分で足す。
  *
  * cache* は今は常に 0 か null になる（プロンプトキャッシュを使っていないため）。
  * 1回の対話が短くキャッシュの最小長に届かないので、有効にしても課金が減らない。
@@ -57,10 +56,9 @@ export class ClaudeError extends Error {
 /**
  * 出力の深さ（思考にどれだけトークンを使うか）。
  *
- * Gemini 版では temperature 0.2 で「振れ幅を抑える」方向に統制していたが、
- * Claude Sonnet 5 / Opus 5 では temperature 自体が廃止され、送ると 400 になる。
- * 生成量を制御するレバーが effort に置き換わったので、記録する統制パラメータも
- * temperature ではなく effort にする（lib/repository.ts が sessions に書く）。
+ * Claude Sonnet 5 / Opus 5 には temperature が無く、送ると 400 になる。
+ * 生成を制御するのは effort なので、再現性のために記録するのも effort にする
+ * （lib/repository.ts が sessions に書く）。
  */
 const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 

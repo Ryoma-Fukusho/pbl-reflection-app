@@ -156,7 +156,7 @@ export default function DialogueWorkspace() {
     setError("");
     setIsLoading(true);
     try {
-      const data = await postJson<CreateSessionResponse>("/api/sessions", { condition: "dialogue", turnMode });
+      const data = await postJson<CreateSessionResponse>("/api/sessions", { turnMode });
       setSession(data.session);
       setMessages(data.messages);
       setMemo("");

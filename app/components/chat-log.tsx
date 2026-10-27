@@ -5,7 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import type { ChatMessage } from "@/lib/types";
 
 /**
- * 対話ログの表示。/ (対話版) と /kws (KWS フォーム版) で共用する。
+ * 対話ログの表示。
  *
  * 発言者は左右の配置だけでなく「AI／あなた」のラベルでも示している。
  * 論文の図として切り出したとき、吹き出しの向きだけでは誰の発言か読み取れないため。

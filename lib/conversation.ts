@@ -13,7 +13,6 @@ import {
   buildContextText,
   facilitatedQuestionInstruction,
   facilitatorInput,
-  formTurnInstruction,
   type Facilitation,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
@@ -160,28 +159,7 @@ export function isFacilitatedStage(stage: Stage): stage is Exclude<DialogueStage
   return stage !== "closing_insight" && stage !== "try_plan";
 }
 
-/** KWS フォーム版（統制群）: 既存のターン数ベースの問いを生成する */
-export async function generateFormReply(
-  session: SessionContext,
-  messages: Pick<StoredMessage, "role" | "content">[],
-  turn: number
-): Promise<MessageInput> {
-  const systemInstruction = [
-    COMMON_SYSTEM,
-    formTurnInstruction(turn),
-    `現在の Keep: ${session.keep || "未入力"}`,
-    `現在の Problem: ${session.problem || "未入力"}`,
-  ].join("\n");
-
-  const result = await generateText({
-    systemInstruction,
-    turns: toTurns(session, messages),
-  });
-
-  return toAssistantMessage(result, null);
-}
-
-/** 両条件共通: 対話履歴とメモから Try（次回の行動計画）を生成する */
+/** 対話履歴とメモから Try（次回の行動計画）を生成する */
 export async function generateTryPlan(
   session: SessionContext,
   messages: Pick<StoredMessage, "role" | "content">[],

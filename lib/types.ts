@@ -8,9 +8,6 @@
  * このファイルはブラウザにも読み込まれるので server-only なものを import しないこと。
  */
 
-/** 実験条件。form = 統制群（KWS フォーム / 旧 KPT）、dialogue = 既定の対話版 */
-export type Condition = "form" | "dialogue";
-
 export type SessionStatus = "active" | "completed" | "abandoned";
 
 /**
@@ -31,7 +28,7 @@ export type MessageRole = "user" | "assistant";
 
 /**
  * AI 対話版のステージ列。コルトハーヘンの ALACT モデルに沿って固定順で進む。
- * サーバーが進行を管理するので、全参加者の問いの順序が揃う（条件統制）。
+ * サーバーが進行を管理するので、全参加者の問いの順序が揃う。
  * 進め方 A ではターン数も揃う。
  */
 export const DIALOGUE_STAGES = [
@@ -52,9 +49,6 @@ export function isDialogueStage(value: unknown): value is DialogueStage {
   return DIALOGUE_STAGES.includes(value as DialogueStage);
 }
 
-export function isStage(value: unknown): value is Stage {
-  return value === "try_plan" || isDialogueStage(value);
-}
 
 /** 次のステージを返す。最後のステージ（closing_insight）の次は try_plan。 */
 export function nextStage(stage: DialogueStage): Stage {
@@ -72,7 +66,7 @@ export type ChatMessage = {
   seq: number;
   role: MessageRole;
   content: string;
-  /** そのメッセージがどのステージのものか。統制群では null */
+  /** そのメッセージがどのステージのものか */
   stage: Stage | null;
   /** AI が生成した本文なら true。ユーザー発言と固定文言（開始文言・締めの問い）は false */
   generated: boolean;
@@ -100,8 +94,7 @@ export type FacilitationView = {
 
 export type SessionSummary = {
   sessionId: string;
-  condition: Condition;
-  /** 対話版の進め方。統制群と、v3 より前のセッションでは "fixed" */
+  /** 進め方。進め方を選べるようになる前のセッションでは "fixed" */
   turnMode: TurnMode;
   status: SessionStatus;
   stage: Stage | null;
@@ -116,18 +109,13 @@ export type SessionSummary = {
 // --- POST /api/sessions ---
 
 export type CreateSessionRequest = {
-  condition: Condition;
-  /** 対話版のみ。省略時は "fixed" */
+  /** 省略時は "fixed" */
   turnMode?: TurnMode;
-  /** 統制群のみ。フォームで先に入力された内容 */
-  keep?: string;
-  problem?: string;
-  memo?: string;
 };
 
 export type CreateSessionResponse = {
   session: SessionSummary;
-  /** 実験群では最初の問いかけが1件入る。統制群では AI の Turn 1 応答が入る */
+  /** 最初の問いかけ（固定文言）が1件入る */
   messages: ChatMessage[];
 };
 
