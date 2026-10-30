@@ -35,10 +35,7 @@ export async function POST(request: NextRequest) {
     const session = await createSession({
       uid: auth.user.uid,
       turnMode,
-      stage: "keep",
-      keep: "",
-      problem: "",
-      memo: "",
+      stage: "problem",
     });
 
     const stored = await appendMessages({
@@ -48,7 +45,7 @@ export async function POST(request: NextRequest) {
         {
           role: "assistant",
           content: FIXED_MESSAGES.opening,
-          stage: "keep",
+          stage: "problem",
           generated: false,
         },
       ],

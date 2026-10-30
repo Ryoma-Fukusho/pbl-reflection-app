@@ -40,8 +40,9 @@ export default function ReflectionGuide({
   turnsInStage: number;
   debug: boolean;
 }) {
-  const stages: Stage[] = [...DIALOGUE_STAGES, "try_plan"];
-  const currentIndex = stage ? stages.indexOf(stage) : -1;
+  const stages: Stage[] = [...DIALOGUE_STAGES];
+  // try_plan（対話を終えて Try を整理する段階）では、すべてのステージを済にする
+  const currentIndex = stage === "try_plan" ? stages.length : stage ? stages.indexOf(stage) : -1;
 
   return (
     <Panel className="scroll-slim shrink-0 overflow-y-auto p-5 lg:max-h-[55dvh]">
@@ -100,13 +101,13 @@ export default function ReflectionGuide({
                   {guide.label}
                 </span>
                 <span className="ml-auto shrink-0 text-[length:var(--fs-micro)] text-[var(--text-muted)]">
-                  {guide.phase.split(" ")[0]}
+                  {guide.phase.match(/第\d局面/)?.[0] ?? ""}
                 </span>
               </div>
 
               {isCurrent ? (
                 <div className="mt-2 pl-6">
-                  <p className="text-[length:var(--fs-micro)] text-[var(--text-muted)]">ALACTモデル {guide.phase}</p>
+                  <p className="text-[length:var(--fs-micro)] text-[var(--text-muted)]">{guide.phase}</p>
                   <p className="mt-1 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
                     {guide.description}
                   </p>
@@ -116,6 +117,10 @@ export default function ReflectionGuide({
           );
         })}
       </ol>
+
+      <p className="mt-3 text-[length:var(--fs-micro)] leading-5 text-[var(--text-muted)]">
+        流れは質問会議の手順に、問いの観点はALACTモデルの局面に沿っています。第1局面(行為)は今日のPBL活動そのもの、第5局面(試行)は次のPBL活動です。
+      </p>
 
       {debug && turnMode === "flexible" && facilitation && stage && stage in STAGE_TURN_BUDGET ? (
         <div className="mt-4 rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] px-3 py-2 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">

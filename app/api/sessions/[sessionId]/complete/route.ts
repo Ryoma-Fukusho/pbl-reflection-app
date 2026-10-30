@@ -51,7 +51,7 @@ export async function POST(
       return conflict("対話の記録がないため Try を生成できません。");
     }
 
-    const context = { keep: session.keep, problem: session.problem, memo: memo || session.memo };
+    const context = { problem: session.problem, memo: memo || session.memo };
 
     // Try のメッセージには常に stage: "try_plan" を付ける。
     // 全文の記録としては messages に残しつつ、UI ではこの印を頼りに

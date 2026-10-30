@@ -1,13 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth";
-import {
-  generateFacilitatedQuestion,
-  generateStageQuestion,
-  isFacilitatedStage,
-  judgeStage,
-  type Judgment,
-} from "@/lib/conversation";
+import { generateFacilitatedQuestion, generateStageQuestion, judgeStage, type Judgment } from "@/lib/conversation";
 import { FIXED_MESSAGES } from "@/lib/prompts";
 import {
   appendMessages,
@@ -26,11 +20,25 @@ import {
   readString,
 } from "@/lib/route-utils";
 import { STAGE_GUIDE } from "@/lib/stage-guide";
-import { isDialogueStage, nextStage, type PostMessageResponse } from "@/lib/types";
+import {
+  isDialogueStage,
+  isFacilitatedStage,
+  isGeneratedStage,
+  nextStage,
+  type DialogueStage,
+  type PostMessageResponse,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/** 固定文言のステージへの回答を写す、セッションのフィールド */
+const ANSWER_FIELDS: Partial<Record<DialogueStage, "closingInsight" | "actionPlan" | "sessionReview">> = {
+  closing_insight: "closingInsight",
+  action_plan: "actionPlan",
+  session_review: "sessionReview",
+};
 
 /**
  * 1ターン分の対話を処理する。
@@ -56,8 +64,7 @@ export async function POST(
     return badRequest("リクエスト形式が不正です。");
   }
 
-  // 進め方 B で「次の観点へ」を押した場合だけ、空欄を許す（答えずに次へ進む）。
-  // 許すかどうかはセッションを読んでから判断する
+  // 空欄を許すかどうかはセッションを読んでから判断する
   const content = readString(body.content);
 
   const memo = readString(body.memo);
@@ -74,10 +81,14 @@ export async function POST(
     }
 
     const isFlexible = session.turnMode === "flexible";
-    // 締めの問いと初期入力のステージ（Problem）は、答えずに進めない
-    const answerRequired =
-      session.stage === "closing_insight" || (session.stage !== null && STAGE_GUIDE[session.stage].initialInput === true);
-    if (!content && !(isFlexible && wantsNext && !answerRequired)) {
+    // 答えずに進めるのは、進め方 B の「次の観点へ」と、振り返りの振り返りの「答えずに終える」だけ。
+    // 問題提示・締めの問い・次に試すことは答えないと進めない
+    const canSkip =
+      wantsNext &&
+      session.stage !== null &&
+      STAGE_GUIDE[session.stage].answerRequired !== true &&
+      (isFlexible || session.stage === "session_review");
+    if (!content && !canSkip) {
       return badRequest("入力が空です。");
     }
 
@@ -87,7 +98,7 @@ export async function POST(
     // サーバーがステージを進める
     const currentStage = session.stage;
     if (!isDialogueStage(currentStage)) {
-      return conflict("対話は完了しています。Try の生成に進んでください。");
+      return conflict("対話は完了しています。Try の整理に進んでください。");
     }
 
     // 空欄のまま次へ進んだ場合は、学習者の発話を記録しない
@@ -98,16 +109,13 @@ export async function POST(
           stage: currentStage,
           generated: false,
           composeMs,
-          choice: isFlexible ? (wantsNext ? "next" : "send") : undefined,
+          choice: isFlexible && isFacilitatedStage(currentStage) ? (wantsNext ? "next" : "send") : undefined,
         }
       : null;
 
-    // ステージごとに、回答をセッションの対応フィールドへ写す。
-    // 進め方 B では同じステージで複数回答えることがあるので、改行でつなげて全て残す。
-    const append = (previous: string) => (!content ? previous : previous ? `${previous}\n${content}` : content);
+    // 最初の問題は、後の問いの前提文脈として使うので別に持つ
     const updated = {
-      keep: currentStage === "keep" ? append(session.keep) : session.keep,
-      problem: currentStage === "problem" ? append(session.problem) : session.problem,
+      problem: currentStage === "problem" ? content : session.problem,
       memo: memo || session.memo,
     };
 
@@ -116,14 +124,14 @@ export async function POST(
 
     // 進むかどうか。進め方 A は常に進む。
     // 進め方 B はファシリテーターが「このステージのねらいが語られた」と判断したら進み、
-    // 学習者が「次の観点へ」を押したら判断によらず進む。締めの問いは1回で答えるので進む。
+    // 学習者が「次の観点へ」を押したら判断によらず進む。固定文言のステージは1回で進む。
     // 判断は毎回行う。進む場合も、扱っている問題と掘る話を次のステージの問いに引き継ぐため。
     let judgment: Judgment | null = null;
     if (isFlexible && isFacilitatedStage(currentStage)) {
       const turnsInStage = sofar.filter((message) => message.role === "user" && message.stage === currentStage).length;
       judgment = await judgeStage(sofar, currentStage, turnsInStage);
     }
-    // 初期入力のステージ（Problem）は掘り下げず、1回答えたら進む
+    // 初期入力のステージ（問題提示）は掘り下げず、1回答えたら進む
     const stay =
       judgment !== null && !wantsNext && !judgment.stage_done && STAGE_GUIDE[currentStage].initialInput !== true;
     const next = stay ? currentStage : nextStage(currentStage);
@@ -132,26 +140,27 @@ export async function POST(
     const sessionPatch: Record<string, unknown> = {
       stage: next,
       turnCount,
-      keep: updated.keep,
       problem: updated.problem,
       memo: updated.memo,
     };
 
-    if (currentStage === "closing_insight") {
-      // 締めの問いへの回答。内省の深さを測る主要データ。
-      sessionPatch.closingInsight = content;
+    // 固定文言のステージへの回答を、セッションの対応フィールドに写す。
+    // closingInsight は内省の深さを測る主要データ
+    const answerField = ANSWER_FIELDS[currentStage];
+    if (answerField) {
+      sessionPatch[answerField] = content;
     }
 
-    if (next === "closing_insight") {
-      // 締めの問いは AI に生成させず固定文言を使う（全参加者に同一の問いを提示するため）
+    if (next === "closing_insight" || next === "action_plan" || next === "session_review") {
+      // 固定文言のステージは AI に生成させない（全参加者に同一の問いを提示するため）
       outgoing.push({
         role: "assistant",
-        content: FIXED_MESSAGES.closing_insight,
-        stage: "closing_insight",
+        content: FIXED_MESSAGES[next],
+        stage: next,
         generated: false,
         skipped: !userMessage || undefined,
       });
-    } else if (judgment && isFacilitatedStage(next)) {
+    } else if (judgment && isGeneratedStage(next)) {
       // 進め方 B: 判断を受けて問いを出す。stay なら同じステージの続き。
       // 話のつながりを尋ねる問いは1つのステージで1回まで。出したかどうかは、
       // このステージで「それている」と判断して出した問いがあるかで見る
@@ -160,11 +169,11 @@ export async function POST(
       );
       const question = await generateFacilitatedQuestion(updated, sofar, next, judgment, !stay, stay && processAsked);
       outgoing.push({ ...question, skipped: !userMessage || undefined });
-    } else if (next !== "try_plan") {
+    } else if (isGeneratedStage(next)) {
       // 進め方 A: 直前のユーザー発言を含めた履歴を渡して、それに応答する問いを生成させる
       outgoing.push(await generateStageQuestion(updated, sofar, next));
     }
-    // next === "try_plan" のときは新たな問いを出さず、Try 生成を待つ
+    // next === "try_plan" のときは新たな問いを出さず、Try の整理を待つ
 
     const stored = await appendMessages({
       sessionId,
@@ -179,7 +188,7 @@ export async function POST(
         ...updated,
         stage: next,
         turnCount,
-        closingInsight: currentStage === "closing_insight" ? content : session.closingInsight,
+        ...(answerField ? { [answerField]: content } : {}),
       },
       messages: stored.map(toChatMessage),
     } satisfies PostMessageResponse);

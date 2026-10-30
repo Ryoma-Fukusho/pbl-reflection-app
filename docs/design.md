@@ -45,22 +45,23 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 
 ### 対話の進み方
 
-ステージはサーバーが決まった順に進める（[lib/types.ts](../lib/types.ts) の `DIALOGUE_STAGES`）。
+ステージはサーバーが決まった順に進める（[lib/types.ts](../lib/types.ts) の `DIALOGUE_STAGES`）。流れは質問会議の手順に、問いの観点は ALACT モデルの局面に沿っている。第1局面（行為）は PBL の活動そのもの、第5局面（試行）は次の活動で、どちらもシステムの外にある。
 
-| ステージ | 画面の表示 | ALACT モデル | 問い |
-|---|---|---|---|
-| `keep` | 良かったこと | 第1局面 | 固定文言 |
-| `problem` | 気になったこと | 第2局面 | 生成 |
-| `fact` | 事実 | 第2局面(自分の側) | 生成 |
-| `feeling_other` | 相手の視点 | 第2局面(相手の側) | 生成 |
-| `essence` | 本当の願い | 第3局面 | 生成 |
-| `closing_insight` | 問題の言い直し | 第3局面 | 固定文言 |
-| `try_plan` | 行動計画 | 第4局面 | 生成 |
+| ステージ | 画面の表示 | 質問会議 / ALACT | 問い | 回答の記録先 |
+|---|---|---|---|---|
+| `problem` | 気になったこと | 問題提示 / 第2局面 | 固定文言（開始の問いかけ） | `sessions.problem` |
+| `fact` | 事実 | 問題の明確化 / 第2局面(自分の側) | 生成 | |
+| `feeling_other` | 相手の視点 | 問題の明確化 / 第2局面(相手の側) | 生成 | |
+| `essence` | 本当の願い | 問題の明確化 / 第3局面 | 生成 | |
+| `closing_insight` | 問題の言い直し | 問題の再定義 / 第3局面 | 固定文言（締めの問い） | `sessions.closingInsight` |
+| `action_plan` | 次に試すこと | アクションプランの提示 / 第4局面 | 固定文言 | `sessions.actionPlan` |
+| `session_review` | 振り返りの振り返り | 質問会議の振り返り | 固定文言（任意。答えずに終えられる） | `sessions.sessionReview` |
+| `try_plan` | — | — | 「次に試すこと」への答えを本人の言葉のまま整理（生成） | `sessions.tryPlan` |
 
 進め方は開始画面で選ぶ（`sessions.turnMode`）。
 
-- **進め方 A（`fixed`）**: 各ステージで1回答えると次へ進む（計6ターン）
-- **進め方 B（`flexible`）**: 学習者は答えるだけ。ステージのねらいが語られたとファシリテーター（LLM）が判断したら次へ進む。学習者は「次の観点へ」（空欄でも押せる）でいつでも先へ進める。ターン数の目安はあるが上限は無い。締めの問いは1回で答える。Problem は初期入力なので1回答えたら進み、掘り下げない（空欄では進めない）
+- **進め方 A（`fixed`）**: 各ステージで1回答えると次へ進む
+- **進め方 B（`flexible`）**: 学習者は答えるだけ。ステージのねらいが語られたとファシリテーター（LLM）が判断したら次へ進む。学習者は「次の観点へ」（空欄でも押せる）でいつでも先へ進める。ターン数の目安はあるが上限は無い。固定文言のステージは1回で答える。問題提示（`problem`）は初期入力なので1回答えたら進み、掘り下げない。問題提示・締めの問い・次に試すことは空欄では進めない
 
 進め方 B では、各ターンでファシリテーターの判断を経て、進むか留まるかと次の問いを決める（[prompt-design.md](./prompt-design.md) §5）。
 
@@ -79,9 +80,11 @@ sessions/{sessionId}
   status: "active" | "completed" | "abandoned"
   stage                                # 今のステージ。完了前は try_plan で止まる
   promptVersion, appVersion, model, effort   # どの条件で集めたデータか
-  keep, problem, memo                  # keep/problem はそのステージの回答（B では改行でつないで全部）
+  problem                              # 開始の問いかけへの回答（最初の問題）。評価の起点
+  memo
   closingInsight                       # 締めの問いへの回答。主な分析対象
-  tryPlan
+  actionPlan, sessionReview            # 次に試すこと・振り返りの振り返りへの回答
+  tryPlan                              # actionPlan を中心に整理した Try
   turnCount, messageCount
   metrics: { totalUserChars, totalAssistantChars, latencySumMs, aiResponseCount, durationMs }
   startedAt, updatedAt, completedAt | abandonedAt
@@ -91,7 +94,7 @@ sessions/{sessionId}/messages/{messageId}
   role: "user" | "assistant", content, charCount, stage, createdAt
   generated                            # assistant: false なら固定文言
   composeMs                            # user: 書き始めてから送信までの時間
-  choice: "send" | "next"              # user・進め方 B: 送信か、「次の観点へ」か
+  choice: "send" | "next"              # user・進め方 B の判断するステージ: 送信か、「次の観点へ」か
   latencyMs, model, promptVersion, finishReason, usage   # assistant: 生成のメタ情報
   facilitation                         # assistant・進め方 B: この問いを出す前の判断（判断したステージ・扱っている問題・掘る話・話の状態・ねらいへの到達・終えるか・理由・ターン数）と、その呼び出しのメタ情報
   skipped                              # assistant: 学習者が空欄で次へ進んだ直後の問いなら true

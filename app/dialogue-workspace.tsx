@@ -17,6 +17,7 @@ import {
   type PostMessageResponse,
   type SessionSummary,
   type TurnMode,
+  isGeneratedStage,
 } from "@/lib/types";
 
 /**
@@ -34,7 +35,7 @@ const TURN_MODE_OPTIONS: { mode: TurnMode; title: string; description: string }[
   {
     mode: "fixed",
     title: "進め方A: 1問ずつ答える",
-    description: "6つの観点で1回ずつ答えます。答えると次の問いに進みます(全6回)。",
+    description: "それぞれの問いに1回ずつ答えます。答えると次の問いに進みます。",
   },
   {
     mode: "flexible",
@@ -165,9 +166,9 @@ export default function DialogueWorkspace() {
     async (composeMs: number, next: boolean) => {
       if (!session || isLoading) return;
 
-      // 空欄で送れるのは、進め方 B で「次の観点へ」を押したときだけ（答えずに次へ進む）
+      // 空欄で送れるのは、進め方 B の「次の観点へ」と、振り返りの振り返りの「答えずに終える」だけ
       const content = input.trim();
-      if (!content && !(session.turnMode === "flexible" && next)) return;
+      if (!content && !(next && (session.turnMode === "flexible" || session.stage === "session_review"))) return;
 
       // 送信中も自分の発言はすぐ見えるようにしておく。
       // サーバーが確定した内容で後から差し替える。空欄で進むときは出さない。
@@ -253,10 +254,9 @@ export default function DialogueWorkspace() {
   const currentStageIndex =
     stage && stage !== "try_plan" ? DIALOGUE_STAGES.indexOf(stage) : DIALOGUE_STAGES.length;
 
-  // 進め方 B で「次の観点へ」を出すか。締めの問いは1回で答えるので出さない。
-  const isFlexibleStage = session?.turnMode === "flexible" && stage !== "closing_insight" && stage !== "try_plan";
-  // 初期入力のステージ（Problem）は1回答えたら進むので、「次の観点へ」は出さない
-  const isInitialInput = stage ? STAGE_GUIDE[stage].initialInput === true : false;
+  // 進め方 B で「次の観点へ」を出すか。問いを掘り下げるステージ（事実・相手の視点・本当の願い）だけに出す
+  const isFlexibleStage = session?.turnMode === "flexible" && !!stage && isGeneratedStage(stage);
+  const isSessionReview = stage === "session_review";
   // 最後に出た問いの、ファシリテーターの判断
   const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
   const facilitation = lastQuestion?.facilitation;
@@ -300,7 +300,7 @@ export default function DialogueWorkspace() {
                     AI との対話で振り返る
                   </h2>
                   <p className="mt-2 text-[length:var(--fs-body)] leading-7 text-[var(--text-secondary)]">
-                    今日の出来事について、AI が次の6つの観点から順に問いかけます。
+                    今日の活動について、次の順に問いかけます。
                   </p>
                 </div>
 
@@ -322,9 +322,9 @@ export default function DialogueWorkspace() {
                   ))}
                   <li className="flex items-center gap-3 bg-[var(--accent-soft)] px-4 py-3 text-[length:var(--fs-body)] text-[var(--text)] sm:col-span-2">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--accent)] text-[length:var(--fs-micro)] font-semibold text-[var(--accent-ink)]">
-                      7
+                      {DIALOGUE_STAGES.length + 1}
                     </span>
-                    最後に、次回の PBL で意識する行動計画（Try）を AI がまとめます。
+                    最後に、次に試すことを、あなたの言葉のまま行動計画（Try）として整理します。
                   </li>
                 </ol>
 
@@ -380,11 +380,11 @@ export default function DialogueWorkspace() {
                     tone="attention"
                     action={
                       <Button onClick={() => void completeSession()} disabled={isLoading}>
-                        {isLoading ? "生成中" : "行動計画（Try）へ進む"}
+                        {isLoading ? "整理中" : "行動計画（Try）を整理する"}
                       </Button>
                     }
                   >
-                    対話はここまでです。次回に向けた行動計画を整理しましょう。
+                    対話はここまでです。次に試すことを、行動計画として整理します。
                   </Notice>
                 ) : null}
 
@@ -409,11 +409,13 @@ export default function DialogueWorkspace() {
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
                     submitLabel="送信"
-                    nextLabel={isFlexibleStage && !isInitialInput ? "次の観点へ" : undefined}
+                    nextLabel={isSessionReview ? "答えずに終える" : isFlexibleStage ? "次の観点へ" : undefined}
                     hint={
-                      isFlexibleStage && !isInitialInput
-                        ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
-                        : undefined
+                      isSessionReview
+                        ? "この問いは任意です。"
+                        : isFlexibleStage
+                          ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
+                          : undefined
                     }
                     actions={
                       <Button variant="quiet" onClick={() => void abandonWorkspace()}>

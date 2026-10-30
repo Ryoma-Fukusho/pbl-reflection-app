@@ -37,10 +37,11 @@ export type SessionRecord = {
   turnMode: TurnMode;
   status: SessionStatus;
   stage: Stage | null;
-  keep: string;
   problem: string;
   memo: string;
   closingInsight: string;
+  actionPlan: string;
+  sessionReview: string;
   tryPlan: string;
   turnCount: number;
   messageCount: number;
@@ -94,10 +95,11 @@ export function toSummary(record: SessionRecord): SessionSummary {
     status: record.status,
     stage: record.stage,
     turnCount: record.turnCount,
-    keep: record.keep,
     problem: record.problem,
     memo: record.memo,
     closingInsight: record.closingInsight,
+    actionPlan: record.actionPlan,
+    sessionReview: record.sessionReview,
     tryPlan: record.tryPlan,
   };
 }
@@ -129,9 +131,6 @@ export async function createSession(params: {
   uid: string;
   turnMode: TurnMode;
   stage: Stage | null;
-  keep: string;
-  problem: string;
-  memo: string;
 }): Promise<SessionRecord> {
   const ref = sessionsRef().doc();
 
@@ -148,10 +147,11 @@ export async function createSession(params: {
     model: getModelName(),
     effort: getEffort(),
 
-    keep: params.keep,
-    problem: params.problem,
-    memo: params.memo,
+    problem: "",
+    memo: "",
     closingInsight: "",
+    actionPlan: "",
+    sessionReview: "",
     tryPlan: "",
 
     turnCount: 0,
@@ -184,10 +184,11 @@ function toRecord(sessionId: string, data: FirebaseFirestore.DocumentData | unde
     turnMode: data?.turnMode === "flexible" ? "flexible" : "fixed",
     status: (data?.status as SessionStatus) ?? "active",
     stage: (data?.stage as Stage | null) ?? null,
-    keep: text(data?.keep),
     problem: text(data?.problem),
     memo: text(data?.memo),
     closingInsight: text(data?.closingInsight),
+    actionPlan: text(data?.actionPlan),
+    sessionReview: text(data?.sessionReview),
     tryPlan: text(data?.tryPlan),
     turnCount: typeof data?.turnCount === "number" ? data.turnCount : 0,
     messageCount: typeof data?.messageCount === "number" ? data.messageCount : 0,

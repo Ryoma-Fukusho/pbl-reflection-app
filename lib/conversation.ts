@@ -13,11 +13,10 @@ import {
   facilitatedQuestionInstruction,
   facilitatorInput,
   type Facilitation,
-  type FacilitatedStage,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
 import { STAGE_GUIDE } from "@/lib/stage-guide";
-import type { DialogueStage, Stage } from "@/lib/types";
+import type { DialogueStage, FacilitatedStage, GeneratedStage } from "@/lib/types";
 
 /**
  * Claude に渡す会話の組み立て。
@@ -26,12 +25,12 @@ import type { DialogueStage, Stage } from "@/lib/types";
  * これが「ログの改ざんが原理的にできない」という性質の根拠になっている。
  */
 
-type SessionContext = Pick<SessionRecord, "keep" | "problem" | "memo">;
+type SessionContext = Pick<SessionRecord, "problem" | "memo">;
 
 function toTurns(session: SessionContext, messages: Pick<StoredMessage, "role" | "content">[]): ClaudeTurn[] {
   const turns: ClaudeTurn[] = [
-    // 会話の先頭に前提文脈を1ターン置く。ステージが進んでも Keep/Problem を見失わないようにするため。
-    { role: "user", text: buildContextText(session.keep, session.problem, session.memo) },
+    // 会話の先頭に前提文脈を1ターン置く。ステージが進んでも最初の問題を見失わないようにするため。
+    { role: "user", text: buildContextText(session.problem, session.memo) },
     ...messages.map((message) => ({
       role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
       text: message.content,
@@ -64,16 +63,15 @@ function toAssistantMessage(
   };
 }
 
-/** AI 対話版・進め方 A: 次のステージの問いを生成する */
+/** 進め方 A: 次のステージの問いを生成する */
 export async function generateStageQuestion(
   session: SessionContext,
   messages: Pick<StoredMessage, "role" | "content">[],
-  stage: DialogueStage
+  stage: GeneratedStage
 ): Promise<MessageInput> {
   const systemInstruction = [
     COMMON_SYSTEM,
     STAGE_INSTRUCTIONS[stage],
-    `現在の Keep: ${session.keep || "未入力"}`,
     `現在の Problem: ${session.problem || "未入力"}`,
   ].join("\n");
 
@@ -148,7 +146,7 @@ export async function judgeStage(
 export async function generateFacilitatedQuestion(
   session: SessionContext,
   messages: Pick<StoredMessage, "role" | "content">[],
-  stage: FacilitatedStage,
+  stage: GeneratedStage,
   judgment: Judgment,
   isNewStage: boolean,
   processAsked: boolean
@@ -156,7 +154,6 @@ export async function generateFacilitatedQuestion(
   const systemInstruction = [
     COMMON_SYSTEM,
     facilitatedQuestionInstruction({ stage, isNewStage, processAsked, judgment }),
-    `現在の Keep: ${session.keep || "未入力"}`,
     `現在の Problem: ${session.problem || "未入力"}`,
   ].join("\n");
 
@@ -168,12 +165,7 @@ export async function generateFacilitatedQuestion(
   return { ...toAssistantMessage(result, stage), facilitation: judgment };
 }
 
-/** ファシリテーターを通して問いを出すステージか（締めの問いは固定文言なので対象外） */
-export function isFacilitatedStage(stage: Stage): stage is FacilitatedStage {
-  return stage !== "closing_insight" && stage !== "try_plan";
-}
-
-/** 対話履歴とメモから Try（次回の行動計画）を生成する */
+/** 「次に試すこと」への答えを中心に、Try を本人の言葉のまま整理する */
 export async function generateTryPlan(
   session: SessionContext,
   messages: Pick<StoredMessage, "role" | "content">[],
@@ -182,7 +174,6 @@ export async function generateTryPlan(
   const systemInstruction = [
     COMMON_SYSTEM,
     TRY_PLAN_INSTRUCTION,
-    `Keep: ${session.keep || "未入力"}`,
     `Problem: ${session.problem || "未入力"}`,
     `Memo: ${session.memo || "未入力"}`,
   ].join("\n");
