@@ -117,6 +117,8 @@ export type FacilitationView = {
   reason: string;
   /** その時点でのステージ内のターン数 */
   turnsInStage: number;
+  /** 終えるかどうかをコードで決めた結果（insight / after_nudge / hard_limit / learner_next / initial_input / stay / nudge） */
+  decision: string;
 };
 
 export type SessionSummary = {

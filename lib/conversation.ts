@@ -17,7 +17,7 @@ import {
   type Facilitation,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
-import { STAGE_GUIDE } from "@/lib/stage-guide";
+import { STAGE_GUIDE, decideStage } from "@/lib/stage-guide";
 import type { DialogueStage, FacilitatedStage, GeneratedStage } from "@/lib/types";
 
 /**
@@ -119,11 +119,12 @@ export type Judgment = NonNullable<MessageInput["facilitation"]>;
 export async function judgeStage(
   messages: Pick<StoredMessage, "role" | "content" | "stage">[],
   stage: FacilitatedStage,
-  turnsInStage: number
+  turnsInStage: number,
+  pressedNext: boolean
 ): Promise<Judgment> {
   const judged = await generateText({
     systemInstruction: FACILITATOR_SYSTEM,
-    turns: [{ role: "user", text: facilitatorInput({ stage, turnsInStage, transcript: toTranscript(messages) }) }],
+    turns: [{ role: "user", text: facilitatorInput({ stage, transcript: toTranscript(messages) }) }],
     jsonSchema: FACILITATION_SCHEMA,
   });
 
@@ -135,7 +136,9 @@ export async function judgeStage(
     judgment = fallbackFacilitation();
   }
 
-  return { ...judgment, judgedStage: stage, turnsInStage, latencyMs: judged.latencyMs, usage: judged.usage };
+  // 終えるかどうかはコードで決める（lib/stage-guide.ts の decideStage）
+  const decision = decideStage({ stage, turnsInStage, level: judgment.level, flow: judgment.flow, pressedNext });
+  return { ...judgment, judgedStage: stage, turnsInStage, decision, latencyMs: judged.latencyMs, usage: judged.usage };
 }
 
 /**
@@ -153,9 +156,10 @@ export async function generateFacilitatedQuestion(
   isNewStage: boolean,
   processAsked: boolean
 ): Promise<MessageInput> {
+  const nudge = !isNewStage && judgment.decision === "nudge";
   const systemInstruction = [
     COMMON_SYSTEM,
-    facilitatedQuestionInstruction({ stage, isNewStage, processAsked, judgment }),
+    facilitatedQuestionInstruction({ stage, isNewStage, processAsked, nudge, judgment }),
     `現在の Problem: ${session.problem || "未入力"}`,
   ].join("\n");
 
@@ -181,7 +185,14 @@ export async function generateAcknowledgement(
     systemInstruction: [COMMON_SYSTEM, ACKNOWLEDGE_INSTRUCTION].join("\n"),
     turns: toTurns(session, messages),
   });
-  return { ...toAssistantMessage(result, "closing_insight"), facilitation: judgment ?? undefined };
+  // 受け止めに問いが混ざると、直後の締めの問いと問いが2つ並ぶ。指示しても混ざることがあるので、
+  // 問いの文（「？」を含む文）を取り除く。残らなければ短い受け止めに置き換える
+  const sentences = result.text.match(/[^。！？!?]+[。！？!?]?/g) ?? [];
+  const kept = sentences.filter((sentence) => !/[？?]/.test(sentence)).join("").trim();
+  return {
+    ...toAssistantMessage({ ...result, text: kept || "話してくれて、ありがとうございます。" }, "closing_insight"),
+    facilitation: judgment ?? undefined,
+  };
 }
 
 /** 次に試すことを本人に問う。締めの答えを受け止めて、会話の流れで聞く */

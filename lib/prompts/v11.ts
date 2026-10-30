@@ -1,4 +1,4 @@
-import { STAGE_GUIDE, STAGE_TURN_BUDGET } from "@/lib/stage-guide";
+import { STAGE_GUIDE } from "@/lib/stage-guide";
 import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
 
 /**
@@ -17,7 +17,7 @@ import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
  * 文面を変えたら PROMPT_VERSION を上げること。sessions と messages に記録され、
  * どの文面で集めたデータかを後から特定するのに使う。
  */
-export const PROMPT_VERSION = "v10";
+export const PROMPT_VERSION = "v11";
 
 /**
  * 問いを出す側のふるまい。細かい禁止を積み上げると問いが機械的になるので、
@@ -84,7 +84,7 @@ export function closingQuestion(problem: string): string {
  */
 export const ACKNOWLEDGE_INSTRUCTION = [
   "学習者の直前の発言を受け止める短い言葉（1〜2文）だけを返してください。",
-  "このあとシステムが締めの問いを出すので、あなたは問いを含めないこと。",
+  "このあとシステムが締めの問いを出すので、あなたは問いを含めないこと。疑問文で終えず、「？」を使わないこと。",
   "学習者が話した言葉を拾って受け止めること。評価や助言はしないこと。",
 ].join(" ");
 
@@ -207,22 +207,16 @@ export const FACILITATOR_SYSTEM = [
   "shallow = 同じところに留まり、短い答えや表面的な答えが続いている。",
   "level: 現在のステージのねらいに対して、学習者の発言がどこまで来たかを次から1つ選ぶ。",
   "not_yet = ねらいにまだ触れていない。report = ねらいに触れているが、出来事の報告にとどまっている。insight = ねらいが本人の言葉で、本人の解釈や気づきとして語られた。",
-  "stage_done: level が insight なら true。ターン数が目安を超えていて、ねらいに近いことが語られていれば、report でも true にしてよい。",
+  "stage_done: level が insight なら true（記録のためのもので、実際に次へ進むかはシステムが決める）。",
   "reason: 判断の理由を一文で。",
 ].join("\n");
 
 /** ファシリテーターに渡す入力。対話記録はステージ名つきの書き起こしにする */
-export function facilitatorInput(params: {
-  stage: FacilitatedStage;
-  turnsInStage: number;
-  transcript: string;
-}): string {
+export function facilitatorInput(params: { stage: FacilitatedStage; transcript: string }): string {
   const guide = STAGE_GUIDE[params.stage];
-  const budget = STAGE_TURN_BUDGET[params.stage];
   return [
     `現在のステージ: ${guide.label}`,
     `このステージのねらい: ${guide.goal}`,
-    `このステージで学習者が話したターン数: ${params.turnsInStage}（目安は ${budget}${params.turnsInStage > budget ? "。目安を超えている" : ""}）`,
     "",
     "対話記録:",
     params.transcript,
@@ -235,11 +229,13 @@ export function facilitatorInput(params: {
  * @param isNewStage このステージが今から始まるなら true
  * @param processAsked このステージで、話のつながりを尋ねる問い（進行についての問い）をすでに出したか。
  *   出していたら、それている判断でも付いていく（同じ問いを繰り返すと問題から気がそれるため）
+ * @param nudge 目安のターン数に達したので、このステージの最後の問いとして催促するなら true
  */
 export function facilitatedQuestionInstruction(params: {
   stage: GeneratedStage;
   isNewStage: boolean;
   processAsked: boolean;
+  nudge: boolean;
   judgment: Facilitation;
 }): string {
   const guide = STAGE_GUIDE[params.stage];
@@ -257,6 +253,15 @@ export function facilitatedQuestionInstruction(params: {
       context,
       STAGE_INSTRUCTIONS[params.stage],
       "最初に、聞く観点が変わることを「では次に、〜について聞かせてください」のように短く伝えること。",
+    ].join(" ");
+  }
+
+  if (params.nudge) {
+    // 目安に達したので、いきなり区切らずに、まだ話していないことがないかを聞く。次の答えで区切る
+    return [
+      context,
+      "この観点について話す最後の問いです。直前の発言を短く受け止めたうえで、この観点について、まだ話していないことや言っておきたいことがあるかを聞く問いを1つだけ返してください。",
+      "次へ進むことや、これで最後であることは言わないこと（画面に表示される）。",
     ].join(" ");
   }
 

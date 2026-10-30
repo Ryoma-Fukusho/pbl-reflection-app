@@ -5,6 +5,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getDb } from "@/lib/firebase/admin";
 import { getEffort, getModelName, type TokenUsage } from "@/lib/claude";
 import { PROMPT_VERSION, type Facilitation } from "@/lib/prompts";
+import type { StageDecision } from "@/lib/stage-guide";
 import type {
   ChatMessage,
   MessageRole,
@@ -59,7 +60,14 @@ export type MessageInput = {
   /** user のみ・進め方 B のみ: send = 送信（進むかはファシリテーターが決める）、next = 「次の観点へ」を押した */
   choice?: "send" | "next";
   /** assistant のみ・進め方 B のみ: この問いを出す前のファシリテーターの判断と、その呼び出しのメタ情報 */
-  facilitation?: Facilitation & { judgedStage: Stage; turnsInStage: number; latencyMs: number; usage: TokenUsage };
+  facilitation?: Facilitation & {
+    judgedStage: Stage;
+    turnsInStage: number;
+    /** 終えるかどうかをコードで決めた結果（lib/stage-guide.ts の decideStage） */
+    decision: StageDecision;
+    latencyMs: number;
+    usage: TokenUsage;
+  };
   /** assistant のみ: 学習者が答えずに（空欄のまま）次のステージへ進んだ直後の問いなら true */
   skipped?: boolean;
   /** assistant のみ: Claude 呼び出しのメタ情報 */
@@ -122,6 +130,7 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
           stageDone: message.facilitation.stage_done,
           reason: message.facilitation.reason,
           turnsInStage: message.facilitation.turnsInStage,
+          decision: message.facilitation.decision,
         }
       : undefined,
   };

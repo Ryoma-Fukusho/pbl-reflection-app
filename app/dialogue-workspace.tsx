@@ -430,7 +430,9 @@ export default function DialogueWorkspace() {
                     nextLabel={isFlexibleStage ? "次の観点へ" : undefined}
                     hint={
                       isFlexibleStage
-                        ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
+                        ? facilitation?.decision === "nudge" && facilitation.judgedStage === stage
+                          ? "この観点は、次の答えで一区切りです。"
+                          : "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
                         : undefined
                     }
                     actions={

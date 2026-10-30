@@ -83,8 +83,8 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
  * 進め方 B で、1つのステージに使うターン数の目安。
  *
  * 質問会議でも問題の明確化は時間の目安で区切られている（舘野ら 2015 の表2では20分）。
- * 目安を超えても強制的には進めず、ファシリテーターに「ねらいに近いことが出ていれば
- * 終えてよい」と伝えるだけにする。上限で切ると話の途中で観点が切り替わるため。
+ * 目安に達してもまだ終わっていなければ、まず「まだ話していないことはあるか」と催促し、
+ * それに答えたら区切る。いきなり打ち切ると話の途中で観点が切り替わるため。
  */
 export const STAGE_TURN_BUDGET: Record<FacilitatedStage, number> = {
   problem: 1,
@@ -92,3 +92,49 @@ export const STAGE_TURN_BUDGET: Record<FacilitatedStage, number> = {
   feeling_other: 4,
   essence: 4,
 };
+
+/** 目安の何倍で強制的に区切るか。ここまで来たら判断によらず次へ進む（仮の値） */
+export const HARD_LIMIT_FACTOR = 2;
+
+/**
+ * 進め方 B で、ステージを終えたか（次へ進むか）の理由。
+ *
+ * insight        ねらいが本人の気づきとして語られた
+ * after_nudge    目安に達して催促し、それに答えた
+ * hard_limit     目安の HARD_LIMIT_FACTOR 倍に達した
+ * learner_next   学習者が「次の観点へ」を押した
+ * initial_input  初期入力のステージ（問題提示）なので1回で進む
+ * stay           まだ終えない（nudge: 次の問いで催促する）
+ */
+export type StageDecision = "insight" | "after_nudge" | "hard_limit" | "learner_next" | "initial_input" | "stay" | "nudge";
+
+/**
+ * ステージを終えるかを決める。LLM の判断（level と flow）を材料にするが、終えるかどうかはこのコードで決める。
+ * LLM に終えるかまで決めさせると、目安のターン数を数え違えて終えることがあったため。
+ *
+ * 本人が自分から話を移したターン（learner_shift）では、気づきが出ていても終えない。
+ * 気づきが出た瞬間に終えると、本人が一番話したいところでシステムが話を閉じてしまうため。
+ */
+export function decideStage(params: {
+  stage: FacilitatedStage;
+  turnsInStage: number;
+  level: string;
+  flow: string;
+  pressedNext: boolean;
+}): StageDecision {
+  const budget = STAGE_TURN_BUDGET[params.stage];
+  if (params.pressedNext) return "learner_next";
+  if (STAGE_GUIDE[params.stage].initialInput) return "initial_input";
+  if (params.turnsInStage >= budget * HARD_LIMIT_FACTOR) return "hard_limit";
+  if (params.flow === "learner_shift") return params.turnsInStage === budget ? "nudge" : "stay";
+  if (params.level === "insight") return "insight";
+  if (params.turnsInStage > budget) return "after_nudge";
+  if (params.turnsInStage === budget) return "nudge";
+  return "stay";
+}
+
+/** その判断で次のステージへ進むか */
+export function isStageDone(decision: StageDecision): boolean {
+  return decision !== "stay" && decision !== "nudge";
+}
+

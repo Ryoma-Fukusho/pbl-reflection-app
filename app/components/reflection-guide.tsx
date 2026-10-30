@@ -11,6 +11,16 @@ const FLOW_LABELS: Record<string, string> = {
   shallow: "浅いまま",
 };
 
+const DECISION_LABELS: Record<string, string> = {
+  insight: "終える(気づきとして語られた)",
+  after_nudge: "終える(催促に答えた)",
+  hard_limit: "終える(目安の2倍に達した)",
+  learner_next: "終える(「次の観点へ」が押された)",
+  initial_input: "終える(初期入力)",
+  stay: "続ける",
+  nudge: "続ける(次の問いで催促する)",
+};
+
 const LEVEL_LABELS: Record<string, string> = {
   not_yet: "ねらいにまだ触れていない",
   report: "報告にとどまる",
@@ -128,7 +138,7 @@ export default function ReflectionGuide({
           <p>判断したステージ: {STAGE_GUIDE[facilitation.judgedStage].label}</p>
           <p>話の状態: {FLOW_LABELS[facilitation.flow] ?? facilitation.flow}</p>
           <p>ねらい: {LEVEL_LABELS[facilitation.level] ?? facilitation.level}</p>
-          <p>ステージを終える: {facilitation.stageDone ? "はい" : "いいえ"}</p>
+          <p>終えるかの決定: {DECISION_LABELS[facilitation.decision] ?? facilitation.decision}</p>
           <p>
             ターン数: {turnsInStage}(目安 {STAGE_TURN_BUDGET[stage as keyof typeof STAGE_TURN_BUDGET]})
           </p>

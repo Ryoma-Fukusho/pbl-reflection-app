@@ -26,7 +26,7 @@ import {
   readJsonBody,
   readString,
 } from "@/lib/route-utils";
-import { STAGE_GUIDE } from "@/lib/stage-guide";
+import { STAGE_GUIDE, isStageDone } from "@/lib/stage-guide";
 import {
   isDialogueStage,
   isFacilitatedStage,
@@ -125,17 +125,16 @@ export async function POST(
     const sofar = [...history, ...outgoing];
 
     // 進むかどうか。進め方 A は常に進む。
-    // 進め方 B はファシリテーターが「このステージのねらいが語られた」と判断したら進み、
-    // 学習者が「次の観点へ」を押したら判断によらず進む。固定文言のステージは1回で進む。
+    // 進め方 B は、ファシリテーター（LLM）の判断を材料に、コードの規則で決める（気づきが語られた・
+    // 催促に答えた・目安の2倍に達した・「次の観点へ」を押した、のどれかで進む）。
     // 判断は毎回行う。進む場合も、扱っている問題と掘る話を次のステージの問いに引き継ぐため。
     let judgment: Judgment | null = null;
     if (isFlexible && isFacilitatedStage(currentStage)) {
       const turnsInStage = sofar.filter((message) => message.role === "user" && message.stage === currentStage).length;
-      judgment = await judgeStage(sofar, currentStage, turnsInStage);
+      judgment = await judgeStage(sofar, currentStage, turnsInStage, wantsNext);
     }
-    // 初期入力のステージ（問題提示）は掘り下げず、1回答えたら進む
-    const stay =
-      judgment !== null && !wantsNext && !judgment.stage_done && STAGE_GUIDE[currentStage].initialInput !== true;
+    // 終えるかどうかは decideStage（lib/stage-guide.ts）の規則で決まっている
+    const stay = judgment !== null && !isStageDone(judgment.decision);
     const next = stay ? currentStage : nextStage(currentStage);
     const turnCount = session.turnCount + (userMessage ? 1 : 0);
 
