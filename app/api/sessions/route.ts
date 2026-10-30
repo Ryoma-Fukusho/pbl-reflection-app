@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { authenticateRequest, upsertUser } from "@/lib/auth";
-import { FIXED_MESSAGES } from "@/lib/prompts";
+import { OPENING_MESSAGE } from "@/lib/prompts";
 import { appendMessages, createSession, toChatMessage, toSummary } from "@/lib/repository";
 import { badRequest, errorResponse, readJsonBody } from "@/lib/route-utils";
 import { isTurnMode, type CreateSessionResponse } from "@/lib/types";
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "assistant",
-          content: FIXED_MESSAGES.opening,
+          content: OPENING_MESSAGE,
           stage: "problem",
           generated: false,
         },

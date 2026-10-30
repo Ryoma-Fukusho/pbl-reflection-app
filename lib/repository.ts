@@ -127,7 +127,6 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
           thread: message.facilitation.thread,
           flow: message.facilitation.flow,
           level: message.facilitation.level,
-          stageDone: message.facilitation.stage_done,
           reason: message.facilitation.reason,
           turnsInStage: message.facilitation.turnsInStage,
           decision: message.facilitation.decision,

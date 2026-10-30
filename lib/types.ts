@@ -110,10 +110,9 @@ export type FacilitationView = {
   focus: string;
   /** いま掘っている話（学習者の言葉） */
   thread: string;
-  /** 話の状態・ねらいへの到達・ステージを終えたか・理由。学習者には出さず、?debug=1 のときだけ表示する */
+  /** 話の状態・ねらいへの到達・理由。学習者には出さず、?debug=1 のときだけ表示する */
   flow: string;
   level: string;
-  stageDone: boolean;
   reason: string;
   /** その時点でのステージ内のターン数 */
   turnsInStage: number;

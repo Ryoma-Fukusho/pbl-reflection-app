@@ -7,13 +7,13 @@ import {
   COMMON_SYSTEM,
   FACILITATION_SCHEMA,
   FACILITATOR_SYSTEM,
-  FINAL_USER_PROMPT,
   PROMPT_VERSION,
-  STAGE_INSTRUCTIONS,
   TRY_PLAN_INSTRUCTION,
+  TRY_PLAN_REQUEST,
   buildContextText,
   facilitatedQuestionInstruction,
   facilitatorInput,
+  stageQuestionInstruction,
   type Facilitation,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
@@ -71,11 +71,7 @@ export async function generateStageQuestion(
   messages: Pick<StoredMessage, "role" | "content">[],
   stage: GeneratedStage
 ): Promise<MessageInput> {
-  const systemInstruction = [
-    COMMON_SYSTEM,
-    STAGE_INSTRUCTIONS[stage],
-    `現在の Problem: ${session.problem || "未入力"}`,
-  ].join("\n");
+  const systemInstruction = [COMMON_SYSTEM, stageQuestionInstruction(stage)].join("\n");
 
   const result = await generateText({
     systemInstruction,
@@ -102,7 +98,6 @@ function fallbackFacilitation(): Facilitation {
     thread: "",
     flow: "on_track",
     level: "not_yet",
-    stage_done: false,
     reason: "判断の JSON を読めなかったため既定値を使った",
   };
 }
@@ -160,7 +155,6 @@ export async function generateFacilitatedQuestion(
   const systemInstruction = [
     COMMON_SYSTEM,
     facilitatedQuestionInstruction({ stage, isNewStage, processAsked, nudge, judgment }),
-    `現在の Problem: ${session.problem || "未入力"}`,
   ].join("\n");
 
   const result = await generateText({
@@ -186,13 +180,18 @@ export async function generateAcknowledgement(
     turns: toTurns(session, messages),
   });
   // 受け止めに問いが混ざると、直後の締めの問いと問いが2つ並ぶ。指示しても混ざることがあるので、
-  // 問いの文（「？」を含む文）を取り除く。残らなければ短い受け止めに置き換える
+  // 問いの文を取り除く。残らなければ短い受け止めに置き換える
   const sentences = result.text.match(/[^。！？!?]+[。！？!?]?/g) ?? [];
-  const kept = sentences.filter((sentence) => !/[？?]/.test(sentence)).join("").trim();
+  const kept = sentences.filter((sentence) => !isQuestionSentence(sentence)).join("").trim();
   return {
     ...toAssistantMessage({ ...result, text: kept || "話してくれて、ありがとうございます。" }, "closing_insight"),
     facilitation: judgment ?? undefined,
   };
+}
+
+/** 問いの文か。「？」を含むか、「〜か。」「〜かな。」のように「か」で終わる文を問いとみなす */
+function isQuestionSentence(sentence: string): boolean {
+  return /[？?]/.test(sentence) || /(か|かな|かね)[。．]?\s*$/.test(sentence.trim());
 }
 
 /** 次に試すことを本人に問う。締めの答えを受け止めて、会話の流れで聞く */
@@ -212,16 +211,9 @@ export async function generateTryPlan(
   messages: Pick<StoredMessage, "role" | "content">[],
   stage: DialogueStage | "try_plan" | null
 ): Promise<MessageInput> {
-  const systemInstruction = [
-    COMMON_SYSTEM,
-    TRY_PLAN_INSTRUCTION,
-    `Problem: ${session.problem || "未入力"}`,
-    `Memo: ${session.memo || "未入力"}`,
-  ].join("\n");
-
   const result = await generateText({
-    systemInstruction,
-    turns: [...toTurns(session, messages), { role: "user", text: FINAL_USER_PROMPT }],
+    systemInstruction: [COMMON_SYSTEM, TRY_PLAN_INSTRUCTION].join("\n"),
+    turns: [...toTurns(session, messages), { role: "user", text: TRY_PLAN_REQUEST }],
   });
 
   return toAssistantMessage(result, stage);
