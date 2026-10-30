@@ -53,7 +53,7 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 | `fact` | 事実 | 問題の明確化 / 第2局面(自分の側) | 生成 | |
 | `feeling_other` | 相手の視点 | 問題の明確化 / 第2局面(相手の側) | 生成 | |
 | `essence` | 本当の願い | 問題の明確化 / 第3局面 | 生成 | |
-| `closing_insight` | 問題の言い直し | 問題の再定義 / 第3局面 | 固定文言（締めの問い） | `sessions.closingInsight` |
+| `closing_insight` | 問題の言い直し | 問題の再定義 / 第3局面 | 固定文言（締めの問い。型は共通で、本人の最初の問題を差し込む） | `sessions.closingInsight` |
 | `action_plan` | 次に試すこと | アクションプランの提示 / 第4局面 | 固定文言 | `sessions.actionPlan` |
 | `session_review` | 振り返りの振り返り | 質問会議の振り返り | 固定文言（任意。答えずに終えられる） | `sessions.sessionReview` |
 | `try_plan` | — | — | 「次に試すこと」への答えを本人の言葉のまま整理（生成） | `sessions.tryPlan` |

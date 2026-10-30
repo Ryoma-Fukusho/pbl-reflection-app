@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth";
 import { generateFacilitatedQuestion, generateStageQuestion, judgeStage, type Judgment } from "@/lib/conversation";
-import { FIXED_MESSAGES } from "@/lib/prompts";
+import { FIXED_MESSAGES, closingQuestion } from "@/lib/prompts";
 import {
   appendMessages,
   getMessages,
@@ -152,10 +152,11 @@ export async function POST(
     }
 
     if (next === "closing_insight" || next === "action_plan" || next === "session_review") {
-      // 固定文言のステージは AI に生成させない（全参加者に同一の問いを提示するため）
+      // 固定文言のステージは AI に生成させない（全参加者に同じ型の問いを提示するため）
       outgoing.push({
         role: "assistant",
-        content: FIXED_MESSAGES[next],
+        // 締めの問いは型が共通で、本人が最初に書いた問題だけを差し込む
+        content: next === "closing_insight" ? closingQuestion(updated.problem) : FIXED_MESSAGES[next],
         stage: next,
         generated: false,
         skipped: !userMessage || undefined,
