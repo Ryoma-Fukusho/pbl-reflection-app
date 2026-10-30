@@ -15,7 +15,7 @@ import type { DialogueStage } from "@/lib/types";
  * 文面を変えたら PROMPT_VERSION を上げること。sessions と messages に記録され、
  * どの文面で集めたデータかを後から特定するのに使う。
  */
-export const PROMPT_VERSION = "v6";
+export const PROMPT_VERSION = "v7";
 
 export const COMMON_SYSTEM = [
   "あなたは評価者や指導者ではなく、質問会議のメンバーのように、PBLを行う学生の振り返りに問いだけで付き合う聞き手です。",

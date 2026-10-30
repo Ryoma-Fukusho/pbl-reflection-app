@@ -19,6 +19,13 @@ export type StageGuide = {
   description: string;
   /** 進め方 B で、これが語られたら次のステージへ進む（締めの問いと Try には無い） */
   goal: string;
+  /**
+   * 初期入力のステージなら true。進め方 B でも1回答えたら次へ進み、掘り下げない。空欄では進めない。
+   * 問題を確定させる場ではなく、問題の所在が後のステージで変わるのはかまわない。
+   * ここで掘り下げると、後のステージ（事実・相手の視点・本当の願い）で扱う内容と重なり、
+   * 評価で比べる「最初の問題」もシステムに形を整えられたものになってしまうため。
+   */
+  initialInput?: boolean;
 };
 
 export const STAGE_GUIDE: Record<Stage, StageGuide> = {
@@ -31,8 +38,9 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
   problem: {
     label: "気になったこと",
     phase: "第2局面 行為の振り返り",
-    description: "引っかかったこと、モヤモヤしたことを1つ選ぶ",
-    goal: "引っかかったことが、それが起きた具体的な場面とともに1つに絞れた",
+    description: "引っかかったこと、モヤモヤしたことを書き出す",
+    goal: "引っかかったこと・モヤモヤしたことが語られた",
+    initialInput: true,
   },
   fact: {
     label: "事実",
@@ -75,7 +83,7 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
  */
 export const STAGE_TURN_BUDGET: Record<Exclude<DialogueStage, "closing_insight">, number> = {
   keep: 2,
-  problem: 3,
+  problem: 1,
   fact: 4,
   feeling_other: 4,
   essence: 4,

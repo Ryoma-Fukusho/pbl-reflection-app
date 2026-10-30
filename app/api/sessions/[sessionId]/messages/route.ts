@@ -25,6 +25,7 @@ import {
   readJsonBody,
   readString,
 } from "@/lib/route-utils";
+import { STAGE_GUIDE } from "@/lib/stage-guide";
 import { isDialogueStage, nextStage, type PostMessageResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +74,10 @@ export async function POST(
     }
 
     const isFlexible = session.turnMode === "flexible";
-    if (!content && !(isFlexible && wantsNext && session.stage !== "closing_insight")) {
+    // 締めの問いと初期入力のステージ（Problem）は、答えずに進めない
+    const answerRequired =
+      session.stage === "closing_insight" || (session.stage !== null && STAGE_GUIDE[session.stage].initialInput === true);
+    if (!content && !(isFlexible && wantsNext && !answerRequired)) {
       return badRequest("入力が空です。");
     }
 
@@ -119,7 +123,9 @@ export async function POST(
       const turnsInStage = sofar.filter((message) => message.role === "user" && message.stage === currentStage).length;
       judgment = await judgeStage(sofar, currentStage, turnsInStage);
     }
-    const stay = judgment !== null && !wantsNext && !judgment.stage_done;
+    // 初期入力のステージ（Problem）は掘り下げず、1回答えたら進む
+    const stay =
+      judgment !== null && !wantsNext && !judgment.stage_done && STAGE_GUIDE[currentStage].initialInput !== true;
     const next = stay ? currentStage : nextStage(currentStage);
     const turnCount = session.turnCount + (userMessage ? 1 : 0);
 

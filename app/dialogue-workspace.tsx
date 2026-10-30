@@ -255,6 +255,8 @@ export default function DialogueWorkspace() {
 
   // 進め方 B で「次の観点へ」を出すか。締めの問いは1回で答えるので出さない。
   const isFlexibleStage = session?.turnMode === "flexible" && stage !== "closing_insight" && stage !== "try_plan";
+  // 初期入力のステージ（Problem）は1回答えたら進むので、「次の観点へ」は出さない
+  const isInitialInput = stage ? STAGE_GUIDE[stage].initialInput === true : false;
   // 最後に出た問いの、ファシリテーターの判断
   const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
   const facilitation = lastQuestion?.facilitation;
@@ -407,9 +409,9 @@ export default function DialogueWorkspace() {
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
                     submitLabel="送信"
-                    nextLabel={isFlexibleStage ? "次の観点へ" : undefined}
+                    nextLabel={isFlexibleStage && !isInitialInput ? "次の観点へ" : undefined}
                     hint={
-                      isFlexibleStage
+                      isFlexibleStage && !isInitialInput
                         ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
                         : undefined
                     }
