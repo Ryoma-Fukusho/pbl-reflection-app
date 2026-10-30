@@ -9,13 +9,14 @@ import {
   PROMPT_VERSION,
   STAGE_INSTRUCTIONS,
   TRY_PLAN_INSTRUCTION,
-  STAGE_GOALS,
   buildContextText,
   facilitatedQuestionInstruction,
   facilitatorInput,
   type Facilitation,
+  type FacilitatedStage,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
+import { STAGE_GUIDE } from "@/lib/stage-guide";
 import type { DialogueStage, Stage } from "@/lib/types";
 
 /**
@@ -86,45 +87,43 @@ export async function generateStageQuestion(
 
 /** ファシリテーターに読ませる書き起こし。どのステージの発話かが分かるようにする */
 function toTranscript(messages: Pick<StoredMessage, "role" | "content" | "stage">[]): string {
-  const stageLabel = (stage: Stage | null) => {
-    if (stage && stage !== "try_plan" && stage !== "closing_insight") return STAGE_GOALS[stage].label;
-    if (stage === "closing_insight") return "問題の言い直し";
-    return "";
-  };
   return messages
-    .map((message) => `${message.role === "assistant" ? "システム" : "学習者"}（${stageLabel(message.stage)}）: ${message.content}`)
+    .map((message) => {
+      const label = message.stage ? STAGE_GUIDE[message.stage].label : "";
+      return `${message.role === "assistant" ? "システム" : "学習者"}（${label}）: ${message.content}`;
+    })
     .join("\n");
 }
 
-/** 判断が JSON として読めなかったときの代わり。問いの生成を止めないための保険 */
-function fallbackFacilitation(stage: Exclude<DialogueStage, "closing_insight">): Facilitation {
+/** 判断が JSON として読めなかったときの代わり。進行を止めず、同じステージに留まる */
+function fallbackFacilitation(): Facilitation {
   return {
     focus: "",
+    thread: "",
     flow: "on_track",
-    covered: [],
-    next_item: STAGE_GOALS[stage].items[0],
+    level: "not_yet",
     stage_done: false,
     reason: "判断の JSON を読めなかったため既定値を使った",
   };
 }
 
+export type Judgment = NonNullable<MessageInput["facilitation"]>;
+
 /**
- * AI 対話版・進め方 B: ファシリテーターの判断を経て、ステージの問いを生成する。
+ * AI 対話版・進め方 B: ファシリテーターの判断。
  *
- * 1回目の呼び出しで対話の進み方を判断させ（中身には介入しない）、
- * 2回目でその判断に沿った問いを1つ出させる。質問会議の ALC とメンバーの分担にあたる。
- *
- * @param isNewStage 学習者が前のステージを終えて、このステージが始まるところなら true
+ * 直近の学習者の発言までを読ませ、扱っている問題・掘る話・話の状態と、
+ * このステージのねらいがどこまで語られたか（ステージを終えてよいか）を判断させる。
+ * 中身には介入しない。質問会議の ALC にあたる。
  */
-export async function generateFacilitatedQuestion(
-  session: SessionContext,
+export async function judgeStage(
   messages: Pick<StoredMessage, "role" | "content" | "stage">[],
-  stage: Exclude<DialogueStage, "closing_insight">,
-  isNewStage: boolean
-): Promise<MessageInput> {
+  stage: FacilitatedStage,
+  turnsInStage: number
+): Promise<Judgment> {
   const judged = await generateText({
     systemInstruction: FACILITATOR_SYSTEM,
-    turns: [{ role: "user", text: facilitatorInput({ stage, isNewStage, transcript: toTranscript(messages) }) }],
+    turns: [{ role: "user", text: facilitatorInput({ stage, turnsInStage, transcript: toTranscript(messages) }) }],
     jsonSchema: FACILITATION_SCHEMA,
   });
 
@@ -133,12 +132,30 @@ export async function generateFacilitatedQuestion(
     judgment = JSON.parse(judged.text) as Facilitation;
   } catch (error) {
     console.error("facilitation parse failed", error, judged.text);
-    judgment = fallbackFacilitation(stage);
+    judgment = fallbackFacilitation();
   }
 
+  return { ...judgment, judgedStage: stage, turnsInStage, latencyMs: judged.latencyMs, usage: judged.usage };
+}
+
+/**
+ * AI 対話版・進め方 B: ファシリテーターの判断を受けて、問いを1つ出す。質問会議のメンバーにあたる。
+ *
+ * @param stage 問いを出すステージ（判断したステージから進んだ場合は、進んだ先）
+ * @param isNewStage このステージが今から始まるなら true
+ * @param processAsked このステージで、話のつながりを尋ねる問いをすでに出したか
+ */
+export async function generateFacilitatedQuestion(
+  session: SessionContext,
+  messages: Pick<StoredMessage, "role" | "content">[],
+  stage: FacilitatedStage,
+  judgment: Judgment,
+  isNewStage: boolean,
+  processAsked: boolean
+): Promise<MessageInput> {
   const systemInstruction = [
     COMMON_SYSTEM,
-    facilitatedQuestionInstruction({ stage, isNewStage, judgment }),
+    facilitatedQuestionInstruction({ stage, isNewStage, processAsked, judgment }),
     `現在の Keep: ${session.keep || "未入力"}`,
     `現在の Problem: ${session.problem || "未入力"}`,
   ].join("\n");
@@ -148,14 +165,11 @@ export async function generateFacilitatedQuestion(
     turns: toTurns(session, messages),
   });
 
-  return {
-    ...toAssistantMessage(result, stage),
-    facilitation: { ...judgment, latencyMs: judged.latencyMs, usage: judged.usage },
-  };
+  return { ...toAssistantMessage(result, stage), facilitation: judgment };
 }
 
 /** ファシリテーターを通して問いを出すステージか（締めの問いは固定文言なので対象外） */
-export function isFacilitatedStage(stage: Stage): stage is Exclude<DialogueStage, "closing_insight"> {
+export function isFacilitatedStage(stage: Stage): stage is FacilitatedStage {
   return stage !== "closing_insight" && stage !== "try_plan";
 }
 

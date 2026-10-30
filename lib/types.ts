@@ -14,8 +14,8 @@ export type SessionStatus = "active" | "completed" | "abandoned";
  * 対話版の進め方。ゼミ内の試用で2つを比べ、導入実験でどちらを使うか決める。
  *
  * fixed    = 進め方 A。各ステージ1ターンで次へ進む（計6ターン）
- * flexible = 進め方 B。各ステージで「この話を続ける」か「次の問いへ進む」かを学習者が選ぶ。
- *            回数の上限は設けない。ステージの順序はサーバーが管理し、飛ばすことはできない
+ * flexible = 進め方 B。ステージを終えてよいかをファシリテーター（LLM）が判断して進める。
+ *            学習者は「次の観点へ」でいつでも先へ進める。ステージの順序はサーバーが管理する
  */
 export type TurnMode = "fixed" | "flexible";
 
@@ -79,17 +79,19 @@ export type ChatMessage = {
 
 /** ファシリテーターの判断のうち、画面に送るもの */
 export type FacilitationView = {
+  /** 判断したときのステージ（ステージが切り替わった直後の問いでは、前のステージ） */
+  judgedStage: Stage;
   /** 学習者がいま扱っている問題（一文） */
   focus: string;
-  /** このステージの観点のうち、聞けたもの */
-  covered: string[];
-  /** この問いで聞いている観点。ひととおり聞けていれば空文字 */
-  nextItem: string;
-  /** このステージの観点がだいたい聞けたか */
-  stageDone: boolean;
-  /** 話の状態と判断の理由。学習者には出さず、?debug=1 のときだけ表示する */
+  /** いま掘っている話（学習者の言葉） */
+  thread: string;
+  /** 話の状態・ねらいへの到達・ステージを終えたか・理由。学習者には出さず、?debug=1 のときだけ表示する */
   flow: string;
+  level: string;
+  stageDone: boolean;
   reason: string;
+  /** その時点でのステージ内のターン数 */
+  turnsInStage: number;
 };
 
 export type SessionSummary = {
@@ -128,11 +130,10 @@ export type PostMessageRequest = {
   /** 常設メモの現在値。毎ターン上書き保存する */
   memo?: string;
   /**
-   * 進め方 B のみ。false なら同じステージで掘り下げる問いを返す（「この話を続ける」）。
-   * 省略時と進め方 A では常に次のステージへ進む。
-   * 進め方 B では、advance が true なら content を空にできる（答えずに次へ進む）
+   * 進め方 B のみ。true なら、ファシリテーターの判断によらず次のステージへ進む（「次の観点へ」）。
+   * このときは content を空にできる。省略時は、進むかどうかをファシリテーターが決める
    */
-  advance?: boolean;
+  next?: boolean;
 };
 
 export type PostMessageResponse = {

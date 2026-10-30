@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckMark, Panel } from "@/app/components/ui";
-import { STAGE_GUIDE, isItemCovered } from "@/lib/stage-guide";
+import { STAGE_GUIDE, STAGE_TURN_BUDGET } from "@/lib/stage-guide";
 import { DIALOGUE_STAGES, type FacilitationView, type Stage, type TurnMode } from "@/lib/types";
 
 const FLOW_LABELS: Record<string, string> = {
@@ -11,24 +11,33 @@ const FLOW_LABELS: Record<string, string> = {
   shallow: "浅いまま",
 };
 
+const LEVEL_LABELS: Record<string, string> = {
+  not_yet: "ねらいにまだ触れていない",
+  report: "報告にとどまる",
+  insight: "気づきとして語られた",
+};
+
 /**
- * 振り返りの進み方。いま扱っている問題と、今のステージが ALACT モデルのどこにあたり、
- * 何が聞けて何を聞いているかを見せる。
+ * 振り返りの進み方。いま扱っている問題と掘っている話、今のステージが ALACT モデルの
+ * どこにあたり、何が語られたら次へ進むかを見せる。
  *
  * 学会の質疑で「LLM なしで自分で深掘りする力はつくか」と問われたことを受けて、
- * 進め方そのものを学習者が持ち帰れるように、ステージの流れと観点を明示している。
- * 判断の中身（話の状態と理由）は学習者には出さず、?debug=1 のときだけ出す。
+ * 進め方そのものを学習者が持ち帰れるように、ステージの流れとねらいを明示している。
+ * 判断の中身（話の状態・ねらいへの到達・理由）は学習者には出さず、?debug=1 のときだけ出す。
  */
 export default function ReflectionGuide({
   stage,
   turnMode,
   facilitation,
+  turnsInStage,
   debug,
 }: {
   stage: Stage | null;
   turnMode: TurnMode;
-  /** 今のステージで最後に出た問いの判断。進め方 A と、ステージに入る前は無い */
+  /** 最後に出た問いの判断。進め方 A と、最初の問いの前は無い */
   facilitation?: FacilitationView;
+  /** 今のステージで学習者が話したターン数 */
+  turnsInStage: number;
   debug: boolean;
 }) {
   const stages: Stage[] = [...DIALOGUE_STAGES, "try_plan"];
@@ -40,11 +49,21 @@ export default function ReflectionGuide({
         振り返りの進み方
       </h2>
 
-      {facilitation?.focus ? (
-        <div className="mt-4 rounded-[var(--r-md)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-3 py-2">
-          <p className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">いま扱っている問題</p>
-          <p className="mt-1 text-[length:var(--fs-body)] leading-6 text-[var(--text)]">{facilitation.focus}</p>
-        </div>
+      {facilitation?.focus || facilitation?.thread ? (
+        <dl className="mt-4 flex flex-col gap-2 rounded-[var(--r-md)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-3 py-2">
+          {facilitation.focus ? (
+            <div>
+              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">いま扱っている問題</dt>
+              <dd className="mt-0.5 text-[length:var(--fs-body)] leading-6 text-[var(--text)]">{facilitation.focus}</dd>
+            </div>
+          ) : null}
+          {facilitation.thread ? (
+            <div>
+              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">いま掘っている話</dt>
+              <dd className="mt-0.5 text-[length:var(--fs-body)] leading-6 text-[var(--text)]">「{facilitation.thread}」</dd>
+            </div>
+          ) : null}
+        </dl>
       ) : null}
 
       <ol className="mt-4 flex flex-col gap-2">
@@ -91,26 +110,6 @@ export default function ReflectionGuide({
                   <p className="mt-1 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
                     {guide.description}
                   </p>
-                  {guide.items.length > 0 ? (
-                    <ul className="mt-2 flex flex-col gap-1">
-                      {guide.items.map((item) => (
-                        <StageItem
-                          key={item}
-                          item={item}
-                          // 進め方 A では判断が無いので、観点を並べるだけにする
-                          state={
-                            turnMode !== "flexible" || !facilitation
-                              ? "plain"
-                              : isItemCovered(item, facilitation.covered)
-                                ? "covered"
-                                : facilitation.nextItem && isItemCovered(item, [facilitation.nextItem])
-                                  ? "asking"
-                                  : "open"
-                          }
-                        />
-                      ))}
-                    </ul>
-                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -118,46 +117,20 @@ export default function ReflectionGuide({
         })}
       </ol>
 
-      {debug && facilitation ? (
+      {debug && turnMode === "flexible" && facilitation && stage && stage in STAGE_TURN_BUDGET ? (
         <div className="mt-4 rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] px-3 py-2 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
           <p className="font-medium text-[var(--text)]">判断(開発用)</p>
+          <p>判断したステージ: {STAGE_GUIDE[facilitation.judgedStage].label}</p>
           <p>話の状態: {FLOW_LABELS[facilitation.flow] ?? facilitation.flow}</p>
-          <p>だいたい聞けた: {facilitation.stageDone ? "はい" : "いいえ"}</p>
+          <p>ねらい: {LEVEL_LABELS[facilitation.level] ?? facilitation.level}</p>
+          <p>ステージを終える: {facilitation.stageDone ? "はい" : "いいえ"}</p>
+          <p>
+            ターン数: {turnsInStage}(目安 {STAGE_TURN_BUDGET[stage as keyof typeof STAGE_TURN_BUDGET]})
+          </p>
           <p>理由: {facilitation.reason}</p>
+          <p className="mt-1 text-[var(--text-muted)]">今のステージのねらい: {STAGE_GUIDE[stage].goal}</p>
         </div>
       ) : null}
     </Panel>
-  );
-}
-
-function StageItem({ item, state }: { item: string; state: "plain" | "covered" | "asking" | "open" }) {
-  return (
-    <li className="flex items-start gap-2 text-[length:var(--fs-small)] leading-6">
-      <span
-        aria-hidden
-        className={`mt-1.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[var(--r-sm)] ${
-          state === "covered"
-            ? "bg-[var(--ok)] text-[var(--surface-1)]"
-            : state === "asking"
-              ? "border border-[var(--accent)] bg-[var(--accent-soft)]"
-              : "border border-[var(--line-strong)]"
-        }`}
-      >
-        {state === "covered" ? <CheckMark className="h-2 w-2" /> : null}
-      </span>
-      <span
-        className={
-          state === "covered"
-            ? "text-[var(--text-secondary)]"
-            : state === "asking"
-              ? "font-semibold text-[var(--accent)]"
-              : "text-[var(--text-secondary)]"
-        }
-      >
-        {item}
-        {state === "asking" ? <span className="ml-1 font-normal">← いま聞いていること</span> : null}
-        <span className="sr-only">{state === "covered" ? "(聞けた)" : ""}</span>
-      </span>
-    </li>
   );
 }

@@ -55,13 +55,10 @@ export type MessageInput = {
   generated: boolean;
   /** user のみ: 入力を書き始めてから送信するまでの時間 */
   composeMs?: number;
-  /**
-   * user のみ・進め方 B のみ: 学習者が押したボタン。continue =「この話を続ける」、advance =「次の問いへ進む」。
-   * 上限ターン数で次へ進めた場合も、押したボタンをそのまま残す（実際の進行は次の発話の stage で分かる）
-   */
-  choice?: "continue" | "advance";
+  /** user のみ・進め方 B のみ: send = 送信（進むかはファシリテーターが決める）、next = 「次の観点へ」を押した */
+  choice?: "send" | "next";
   /** assistant のみ・進め方 B のみ: この問いを出す前のファシリテーターの判断と、その呼び出しのメタ情報 */
-  facilitation?: Facilitation & { latencyMs: number; usage: TokenUsage };
+  facilitation?: Facilitation & { judgedStage: Stage; turnsInStage: number; latencyMs: number; usage: TokenUsage };
   /** assistant のみ: 学習者が答えずに（空欄のまま）次のステージへ進んだ直後の問いなら true */
   skipped?: boolean;
   /** assistant のみ: Claude 呼び出しのメタ情報 */
@@ -115,12 +112,14 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
     generated: message.generated,
     facilitation: message.facilitation
       ? {
+          judgedStage: message.facilitation.judgedStage,
           focus: message.facilitation.focus,
-          covered: message.facilitation.covered,
-          nextItem: message.facilitation.next_item,
-          stageDone: message.facilitation.stage_done,
+          thread: message.facilitation.thread,
           flow: message.facilitation.flow,
+          level: message.facilitation.level,
+          stageDone: message.facilitation.stage_done,
           reason: message.facilitation.reason,
+          turnsInStage: message.facilitation.turnsInStage,
         }
       : undefined,
   };
@@ -229,6 +228,7 @@ export async function getMessages(sessionId: string): Promise<StoredMessage[]> {
       generated: data.generated !== false,
       composeMs: typeof data.composeMs === "number" ? data.composeMs : undefined,
       latencyMs: typeof data.latencyMs === "number" ? data.latencyMs : undefined,
+      facilitation: data.facilitation ?? undefined,
     };
   });
 }

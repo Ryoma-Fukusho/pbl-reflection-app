@@ -17,26 +17,23 @@ export default function Composer({
   isLoading,
   placeholder,
   submitLabel,
-  continueLabel,
-  allowEmptySubmit = false,
+  nextLabel,
   loadingLabel = "応答を待っています",
   hint = "Enter は改行です。送信はボタンから。",
   actions,
 }: {
   value: string;
   onChange: (next: string) => void;
-  /** advance は、どちらのボタンで送ったか。continueLabel のボタンなら false */
-  onSubmit: (composeMs: number, advance: boolean) => void;
+  /** next は、nextLabel のボタンで送ったら true */
+  onSubmit: (composeMs: number, next: boolean) => void;
   isLoading: boolean;
   placeholder: string;
   submitLabel: string;
   /**
-   * 指定すると、送信ボタンの左に「同じステージで続ける」ためのボタンを出す（進め方 B）。
-   * 押すと onSubmit に advance: false が渡る
+   * 指定すると、送信ボタンの左に「次の観点へ」ボタンを出す（進め方 B）。
+   * 空欄でも押せ、押すと onSubmit に next: true が渡る
    */
-  continueLabel?: string;
-  /** true なら、送信ボタン（continueLabel ではない方）を空欄でも押せる。進め方 B で答えずに次へ進むため */
-  allowEmptySubmit?: boolean;
+  nextLabel?: string;
   loadingLabel?: string;
   /** 入力欄の下に出す説明 */
   hint?: ReactNode;
@@ -60,23 +57,23 @@ export default function Composer({
   );
 
   const submit = useCallback(
-    (advance: boolean) => {
-      // 「この話を続ける」は何か書かないと押せない。送信ボタンは allowEmptySubmit なら空欄でも押せる
-      if (isLoading || (!value.trim() && !(advance && allowEmptySubmit))) {
+    (next: boolean) => {
+      // 送信は何か書かないと押せない。「次の観点へ」は空欄でも押せる
+      if (isLoading || (!value.trim() && !next)) {
         return;
       }
 
       const startedAt = composeStartedAtRef.current;
       composeStartedAtRef.current = null;
-      onSubmit(startedAt === null ? 0 : Date.now() - startedAt, advance);
+      onSubmit(startedAt === null ? 0 : Date.now() - startedAt, next);
     },
-    [isLoading, value, allowEmptySubmit, onSubmit]
+    [isLoading, value, onSubmit]
   );
 
   const handleSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      submit(true);
+      submit(false);
     },
     [submit]
   );
@@ -97,12 +94,12 @@ export default function Composer({
         <p className="text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">{hint}</p>
         <div className="flex flex-wrap items-center gap-2">
           {actions}
-          {continueLabel ? (
-            <Button variant="secondary" onClick={() => submit(false)} disabled={isLoading || !value.trim()}>
-              {continueLabel}
+          {nextLabel ? (
+            <Button variant="secondary" onClick={() => submit(true)} disabled={isLoading}>
+              {nextLabel}
             </Button>
           ) : null}
-          <Button type="submit" disabled={isLoading || (!value.trim() && !allowEmptySubmit)}>
+          <Button type="submit" disabled={isLoading || !value.trim()}>
             {isLoading ? loadingLabel : submitLabel}
           </Button>
         </div>

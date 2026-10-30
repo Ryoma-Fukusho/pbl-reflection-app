@@ -7,13 +7,13 @@ import ChatLog, { TryPlanCard } from "@/app/components/chat-log";
 import Composer from "@/app/components/composer";
 import MemoPanel from "@/app/components/memo-panel";
 import ReflectionGuide from "@/app/components/reflection-guide";
+import { STAGE_GUIDE } from "@/lib/stage-guide";
 import { AppHeader, Button, Notice, Panel, StepRail } from "@/app/components/ui";
 import {
   DIALOGUE_STAGES,
   type ChatMessage,
   type CompleteSessionResponse,
   type CreateSessionResponse,
-  type DialogueStage,
   type PostMessageResponse,
   type SessionSummary,
   type TurnMode,
@@ -28,14 +28,6 @@ import {
  */
 const STORAGE_PREFIX = "pbl-reflection-dialogue:v1";
 
-const STAGE_LABELS: Record<DialogueStage, string> = {
-  keep: "良かったこと",
-  problem: "気になったこと",
-  fact: "事実",
-  feeling_other: "相手の視点",
-  essence: "本当の願い",
-  closing_insight: "問題の言い直し",
-};
 
 /** 開始画面で選ぶ進め方。ゼミ内の試用で A と B を比べてもらうため、名前で呼べるようにしている */
 const TURN_MODE_OPTIONS: { mode: TurnMode; title: string; description: string }[] = [
@@ -46,8 +38,8 @@ const TURN_MODE_OPTIONS: { mode: TurnMode; title: string; description: string }[
   },
   {
     mode: "flexible",
-    title: "進め方B: 話す量を自分で決める",
-    description: "観点ごとに、もう少し話すか次の問いへ進むかを自分で選べます。話すことがなければ、空欄のまま次へ進めます。",
+    title: "進め方B: 話に合わせて掘り下げる",
+    description: "観点ごとに、話した内容に合わせて問いを重ねます。十分に話せたら次の観点へ進みます。自分で先に進むこともできます。",
   },
 ];
 
@@ -170,12 +162,12 @@ export default function DialogueWorkspace() {
   }, [postJson]);
 
   const sendMessage = useCallback(
-    async (composeMs: number, advance: boolean) => {
+    async (composeMs: number, next: boolean) => {
       if (!session || isLoading) return;
 
-      // 空欄で送れるのは、進め方 B で「次の問いへ進む」を押したときだけ（答えずに次へ進む）
+      // 空欄で送れるのは、進め方 B で「次の観点へ」を押したときだけ（答えずに次へ進む）
       const content = input.trim();
-      if (!content && !(session.turnMode === "flexible" && advance)) return;
+      if (!content && !(session.turnMode === "flexible" && next)) return;
 
       // 送信中も自分の発言はすぐ見えるようにしておく。
       // サーバーが確定した内容で後から差し替える。空欄で進むときは出さない。
@@ -200,7 +192,7 @@ export default function DialogueWorkspace() {
       try {
         const data = await postJson<PostMessageResponse>(
           `/api/sessions/${session.sessionId}/messages`,
-          { content, composeMs, memo, advance }
+          { content, composeMs, memo, next }
         );
 
         setMessages((current) => [
@@ -261,12 +253,12 @@ export default function DialogueWorkspace() {
   const currentStageIndex =
     stage && stage !== "try_plan" ? DIALOGUE_STAGES.indexOf(stage) : DIALOGUE_STAGES.length;
 
-  // 進め方 B で「この話を続ける」を出すか。締めの問いは1回で答えるので出さない。
+  // 進め方 B で「次の観点へ」を出すか。締めの問いは1回で答えるので出さない。
   const isFlexibleStage = session?.turnMode === "flexible" && stage !== "closing_insight" && stage !== "try_plan";
-  // 今のステージで最後に出た問いの、ファシリテーターの判断
+  // 最後に出た問いの、ファシリテーターの判断
   const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
-  const facilitation = lastQuestion?.stage === stage ? lastQuestion?.facilitation : undefined;
-  const stageLooksDone = isFlexibleStage && facilitation?.stageDone === true;
+  const facilitation = lastQuestion?.facilitation;
+  const turnsInStage = messages.filter((message) => message.role === "user" && message.stage === stage).length;
 
   /*
    * 開始前は画面いっぱいに引き伸ばさない。
@@ -292,7 +284,7 @@ export default function DialogueWorkspace() {
           >
             {session ? (
               <StepRail
-                steps={DIALOGUE_STAGES.map((stageName) => STAGE_LABELS[stageName])}
+                steps={DIALOGUE_STAGES.map((stageName) => STAGE_GUIDE[stageName].label)}
                 currentIndex={currentStageIndex}
               />
             ) : null}
@@ -323,7 +315,7 @@ export default function DialogueWorkspace() {
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-[var(--line-strong)] text-[length:var(--fs-micro)] font-semibold tabular-nums text-[var(--text-secondary)]">
                         {index + 1}
                       </span>
-                      {STAGE_LABELS[stageName]}
+                      {STAGE_GUIDE[stageName].label}
                     </li>
                   ))}
                   <li className="flex items-center gap-3 bg-[var(--accent-soft)] px-4 py-3 text-[length:var(--fs-body)] text-[var(--text)] sm:col-span-2">
@@ -411,18 +403,15 @@ export default function DialogueWorkspace() {
                   <Composer
                     value={input}
                     onChange={setInput}
-                    onSubmit={(composeMs, advance) => void sendMessage(composeMs, advance)}
+                    onSubmit={(composeMs, next) => void sendMessage(composeMs, next)}
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
-                    submitLabel={isFlexibleStage ? "次の問いへ進む" : "送信"}
-                    continueLabel={isFlexibleStage ? "この話を続ける" : undefined}
-                    allowEmptySubmit={isFlexibleStage}
+                    submitLabel="送信"
+                    nextLabel={isFlexibleStage ? "次の観点へ" : undefined}
                     hint={
-                      stageLooksDone
-                        ? "この観点はだいたい聞けました。次の問いへ進んでもかまいません。"
-                        : isFlexibleStage
-                          ? "まだ話し足りなければ「この話を続ける」、話し終えたら「次の問いへ進む」。話すことがなければ空欄のまま進めます。"
-                          : undefined
+                      isFlexibleStage
+                        ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
+                        : undefined
                     }
                     actions={
                       <Button variant="quiet" onClick={() => void abandonWorkspace()}>
@@ -442,6 +431,7 @@ export default function DialogueWorkspace() {
               stage={session.stage}
               turnMode={session.turnMode}
               facilitation={facilitation}
+              turnsInStage={turnsInStage}
               debug={debug}
             />
           ) : null}

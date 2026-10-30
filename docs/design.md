@@ -60,9 +60,9 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 進め方は開始画面で選ぶ（`sessions.turnMode`）。
 
 - **進め方 A（`fixed`）**: 各ステージで1回答えると次へ進む（計6ターン）
-- **進め方 B（`flexible`）**: 答えるたびに「この話を続ける」か「次の問いへ進む」かを選ぶ。回数の上限は無い。空欄のまま「次の問いへ進む」も押せる。締めの問いは1回で答える
+- **進め方 B（`flexible`）**: 学習者は答えるだけ。ステージのねらいが語られたとファシリテーター（LLM）が判断したら次へ進む。学習者は「次の観点へ」（空欄でも押せる）でいつでも先へ進める。ターン数の目安はあるが上限は無い。締めの問いは1回で答える
 
-進め方 B では、各ターンでファシリテーターの判断を経て問いを出す（[prompt-design.md](./prompt-design.md) §5）。
+進め方 B では、各ターンでファシリテーターの判断を経て、進むか留まるかと次の問いを決める（[prompt-design.md](./prompt-design.md) §5）。
 
 ---
 
@@ -91,9 +91,9 @@ sessions/{sessionId}/messages/{messageId}
   role: "user" | "assistant", content, charCount, stage, createdAt
   generated                            # assistant: false なら固定文言
   composeMs                            # user: 書き始めてから送信までの時間
-  choice: "continue" | "advance"       # user・進め方 B: 押したボタン
+  choice: "send" | "next"              # user・進め方 B: 送信か、「次の観点へ」か
   latencyMs, model, promptVersion, finishReason, usage   # assistant: 生成のメタ情報
-  facilitation                         # assistant・進め方 B: この問いを出す前の判断と、その呼び出しのメタ情報
+  facilitation                         # assistant・進め方 B: この問いを出す前の判断（判断したステージ・扱っている問題・掘る話・話の状態・ねらいへの到達・終えるか・理由・ターン数）と、その呼び出しのメタ情報
   skipped                              # assistant: 学習者が空欄で次へ進んだ直後の問いなら true
 ```
 
