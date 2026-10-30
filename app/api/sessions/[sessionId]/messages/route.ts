@@ -1,8 +1,15 @@
 import type { NextRequest } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth";
-import { generateFacilitatedQuestion, generateStageQuestion, judgeStage, type Judgment } from "@/lib/conversation";
-import { FIXED_MESSAGES, closingQuestion } from "@/lib/prompts";
+import {
+  generateAcknowledgement,
+  generateActionPlanQuestion,
+  generateFacilitatedQuestion,
+  generateStageQuestion,
+  judgeStage,
+  type Judgment,
+} from "@/lib/conversation";
+import { closingQuestion } from "@/lib/prompts";
 import {
   appendMessages,
   getMessages,
@@ -34,10 +41,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /** 固定文言のステージへの回答を写す、セッションのフィールド */
-const ANSWER_FIELDS: Partial<Record<DialogueStage, "closingInsight" | "actionPlan" | "sessionReview">> = {
+const ANSWER_FIELDS: Partial<Record<DialogueStage, "closingInsight" | "actionPlan">> = {
   closing_insight: "closingInsight",
   action_plan: "actionPlan",
-  session_review: "sessionReview",
 };
 
 /**
@@ -81,13 +87,9 @@ export async function POST(
     }
 
     const isFlexible = session.turnMode === "flexible";
-    // 答えずに進めるのは、進め方 B の「次の観点へ」と、振り返りの振り返りの「答えずに終える」だけ。
-    // 問題提示・締めの問い・次に試すことは答えないと進めない
+    // 答えずに進めるのは、進め方 B の「次の観点へ」だけ。問題提示・締めの問い・次に試すことは答えないと進めない
     const canSkip =
-      wantsNext &&
-      session.stage !== null &&
-      STAGE_GUIDE[session.stage].answerRequired !== true &&
-      (isFlexible || session.stage === "session_review");
+      wantsNext && isFlexible && session.stage !== null && STAGE_GUIDE[session.stage].answerRequired !== true;
     if (!content && !canSkip) {
       return badRequest("入力が空です。");
     }
@@ -151,16 +153,19 @@ export async function POST(
       sessionPatch[answerField] = content;
     }
 
-    if (next === "closing_insight" || next === "action_plan" || next === "session_review") {
-      // 固定文言のステージは AI に生成させない（全参加者に同じ型の問いを提示するため）
+    if (next === "closing_insight") {
+      // 直前の話を受け止める一言を生成してから、締めの問いを出す。
+      // 締めの問いは評価で使うので AI に生成させず、型が共通で本人が最初に書いた問題だけを差し込む
+      outgoing.push({ ...(await generateAcknowledgement(updated, sofar, judgment)), skipped: !userMessage || undefined });
       outgoing.push({
         role: "assistant",
-        // 締めの問いは型が共通で、本人が最初に書いた問題だけを差し込む
-        content: next === "closing_insight" ? closingQuestion(updated.problem) : FIXED_MESSAGES[next],
+        content: closingQuestion(updated.problem),
         stage: next,
         generated: false,
-        skipped: !userMessage || undefined,
       });
+    } else if (next === "action_plan") {
+      // 次に試すことは評価で使わないので、締めの答えを受け止めて会話の流れで聞く
+      outgoing.push(await generateActionPlanQuestion(updated, sofar));
     } else if (judgment && isGeneratedStage(next)) {
       // 進め方 B: 判断を受けて問いを出す。stay なら同じステージの続き。
       // 話のつながりを尋ねる問いは1つのステージで1回まで。出したかどうかは、

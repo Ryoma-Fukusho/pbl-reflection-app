@@ -7,6 +7,7 @@ import ChatLog, { TryPlanCard } from "@/app/components/chat-log";
 import Composer from "@/app/components/composer";
 import MemoPanel from "@/app/components/memo-panel";
 import ReflectionGuide from "@/app/components/reflection-guide";
+import SessionReview from "@/app/components/session-review";
 import { STAGE_GUIDE } from "@/lib/stage-guide";
 import { AppHeader, Button, Notice, Panel, StepRail } from "@/app/components/ui";
 import {
@@ -15,6 +16,7 @@ import {
   type CompleteSessionResponse,
   type CreateSessionResponse,
   type PostMessageResponse,
+  type ReviewSessionResponse,
   type SessionSummary,
   type TurnMode,
   isGeneratedStage,
@@ -166,9 +168,9 @@ export default function DialogueWorkspace() {
     async (composeMs: number, next: boolean) => {
       if (!session || isLoading) return;
 
-      // 空欄で送れるのは、進め方 B の「次の観点へ」と、振り返りの振り返りの「答えずに終える」だけ
+      // 空欄で送れるのは、進め方 B の「次の観点へ」を押したときだけ（答えずに次へ進む）
       const content = input.trim();
-      if (!content && !(next && (session.turnMode === "flexible" || session.stage === "session_review"))) return;
+      if (!content && !(next && session.turnMode === "flexible")) return;
 
       // 送信中も自分の発言はすぐ見えるようにしておく。
       // サーバーが確定した内容で後から差し替える。空欄で進むときは出さない。
@@ -233,6 +235,21 @@ export default function DialogueWorkspace() {
     }
   }, [session, isLoading, memo, postJson, handleApiError]);
 
+  /** 振り返りの振り返り（任意）を送る。Try の後に出す */
+  const submitReview = useCallback(
+    async (content: string) => {
+      if (!session) return;
+      setError("");
+      try {
+        const data = await postJson<ReviewSessionResponse>(`/api/sessions/${session.sessionId}/review`, { content });
+        setSession(data.session);
+      } catch (reviewError) {
+        handleApiError(reviewError, "送信に失敗しました。");
+      }
+    },
+    [session, postJson, handleApiError]
+  );
+
   /**
    * 「中断する」。サーバー側にも離脱として記録してから画面を戻す。
    * 記録が失敗しても利用者の操作は止めない（離脱の記録は分析側の都合なので）。
@@ -256,7 +273,6 @@ export default function DialogueWorkspace() {
 
   // 進め方 B で「次の観点へ」を出すか。問いを掘り下げるステージ（事実・相手の視点・本当の願い）だけに出す
   const isFlexibleStage = session?.turnMode === "flexible" && !!stage && isGeneratedStage(stage);
-  const isSessionReview = stage === "session_review";
   // 最後に出た問いの、ファシリテーターの判断
   const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
   const facilitation = lastQuestion?.facilitation;
@@ -324,7 +340,7 @@ export default function DialogueWorkspace() {
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--accent)] text-[length:var(--fs-micro)] font-semibold text-[var(--accent-ink)]">
                       {DIALOGUE_STAGES.length + 1}
                     </span>
-                    最後に、次に試すことを、あなたの言葉のまま行動計画（Try）として整理します。
+                    最後に、次に試すことを、あなたの言葉のまま行動計画（Try）として整理します。そのあと、任意で今日の振り返りそのものを振り返ります。
                   </li>
                 </ol>
 
@@ -388,6 +404,8 @@ export default function DialogueWorkspace() {
                   </Notice>
                 ) : null}
 
+                {isCompleted ? <SessionReview saved={session.sessionReview} onSubmit={submitReview} /> : null}
+
                 {isCompleted ? (
                   <Notice
                     tone="done"
@@ -409,13 +427,11 @@ export default function DialogueWorkspace() {
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
                     submitLabel="送信"
-                    nextLabel={isSessionReview ? "答えずに終える" : isFlexibleStage ? "次の観点へ" : undefined}
+                    nextLabel={isFlexibleStage ? "次の観点へ" : undefined}
                     hint={
-                      isSessionReview
-                        ? "この問いは任意です。"
-                        : isFlexibleStage
-                          ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
-                          : undefined
+                      isFlexibleStage
+                        ? "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
+                        : undefined
                     }
                     actions={
                       <Button variant="quiet" onClick={() => void abandonWorkspace()}>

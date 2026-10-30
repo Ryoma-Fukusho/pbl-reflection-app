@@ -37,8 +37,11 @@ export type MessageRole = "user" | "assistant";
  * feeling_other   問題の明確化（相手の側）
  * essence         本当の願い
  * closing_insight 問題の言い直し。締めの問い（固定文言）
- * action_plan     次に試すこと。本人に問う（固定文言）
- * session_review  振り返りの振り返り。任意で、答えずに終えられる（固定文言）
+ * action_plan     次に試すこと。本人に問う（生成）
+ *
+ * 質問会議の最後の「質問会議の振り返り」にあたる振り返りの振り返りは、対話の流れに入れず、
+ * Try の後に任意の入力欄として置く（sessions.sessionReview）。終わりに決まった問いが続くと、
+ * 会話ではなく手続きをこなしている感じになるため。
  */
 export const DIALOGUE_STAGES = [
   "problem",
@@ -47,7 +50,6 @@ export const DIALOGUE_STAGES = [
   "essence",
   "closing_insight",
   "action_plan",
-  "session_review",
 ] as const;
 
 export type DialogueStage = (typeof DIALOGUE_STAGES)[number];
@@ -73,7 +75,7 @@ export function isGeneratedStage(stage: Stage): stage is GeneratedStage {
   return stage === "fact" || stage === "feeling_other" || stage === "essence";
 }
 
-/** 次のステージを返す。最後のステージ（session_review）の次は try_plan。 */
+/** 次のステージを返す。最後のステージ（action_plan）の次は try_plan。 */
 export function nextStage(stage: DialogueStage): Stage {
   const index = DIALOGUE_STAGES.indexOf(stage);
   const next = DIALOGUE_STAGES[index + 1];
@@ -154,9 +156,8 @@ export type PostMessageRequest = {
   /** 常設メモの現在値。毎ターン上書き保存する */
   memo?: string;
   /**
-   * true なら、答えずに（または答えたうえで）次のステージへ進む。
-   * 進め方 B の「次の観点へ」と、振り返りの振り返りの「答えずに終える」で使う。
-   * 省略時は、進め方 B では進むかどうかをファシリテーターが決める
+   * 進め方 B の「次の観点へ」。true なら、答えずに（または答えたうえで）次のステージへ進む。
+   * 省略時は、進むかどうかをファシリテーターが決める
    */
   next?: boolean;
 };
@@ -177,6 +178,17 @@ export type CompleteSessionResponse = {
   session: SessionSummary;
   messages: ChatMessage[];
   tryPlan: string;
+};
+
+// --- POST /api/sessions/[sessionId]/review ---
+
+/** 振り返りの振り返り（任意）。Try の後に送る */
+export type ReviewSessionRequest = {
+  content: string;
+};
+
+export type ReviewSessionResponse = {
+  session: SessionSummary;
 };
 
 export type ApiErrorResponse = {

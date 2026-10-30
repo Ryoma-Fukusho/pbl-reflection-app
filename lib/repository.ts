@@ -318,6 +318,15 @@ export function completionPatch(startedAt: Date | null) {
   };
 }
 
+/** 振り返りの振り返り（任意）を保存する。Try の後に送られる */
+export async function saveSessionReview(sessionId: string, content: string): Promise<void> {
+  await sessionsRef().doc(sessionId).update({
+    sessionReview: content,
+    reviewedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
 /**
  * セッションを離脱状態にする。
  *

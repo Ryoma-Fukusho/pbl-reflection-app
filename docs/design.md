@@ -39,6 +39,7 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 | `POST /api/sessions` | セッション開始。開始の問いかけ（固定文言）を1件置いて返す |
 | `POST /api/sessions/[id]/messages` | 1ターン分の処理。学習者の発言を保存し、次の問いを生成して返す |
 | `POST /api/sessions/[id]/complete` | Try（行動計画）を生成し、セッションを完了にする |
+| `POST /api/sessions/[id]/review` | 振り返りの振り返り（任意）を保存する。完了後だけ受け付ける |
 | `POST /api/sessions/[id]/abandon` | 「中断する」を押したときに離脱として記録する |
 
 画面は2列。左が対話、右が「振り返りの進み方」（[reflection-guide.tsx](../app/components/reflection-guide.tsx)）とメモ。
@@ -54,14 +55,16 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 | `feeling_other` | 相手の視点 | 問題の明確化 / 第2局面(相手の側) | 生成 | |
 | `essence` | 本当の願い | 問題の明確化 / 第3局面 | 生成 | |
 | `closing_insight` | 問題の言い直し | 問題の再定義 / 第3局面 | 固定文言（締めの問い。型は共通で、本人の最初の問題を差し込む） | `sessions.closingInsight` |
-| `action_plan` | 次に試すこと | アクションプランの提示 / 第4局面 | 固定文言 | `sessions.actionPlan` |
-| `session_review` | 振り返りの振り返り | 質問会議の振り返り | 固定文言（任意。答えずに終えられる） | `sessions.sessionReview` |
+| `action_plan` | 次に試すこと | アクションプランの提示 / 第4局面 | 生成（締めの答えを受け止めて聞く） | `sessions.actionPlan` |
 | `try_plan` | — | — | 「次に試すこと」への答えを本人の言葉のまま整理（生成） | `sessions.tryPlan` |
+| （Try の後） | 振り返りの振り返り | 質問会議の振り返り | 画面の入力欄（任意） | `sessions.sessionReview` |
+
+締めの問いの直前には、直前の話を受け止める一言を LLM が生成して入れる（別のメッセージ。締めの問いの文面は変えない）。
 
 進め方は開始画面で選ぶ（`sessions.turnMode`）。
 
 - **進め方 A（`fixed`）**: 各ステージで1回答えると次へ進む
-- **進め方 B（`flexible`）**: 学習者は答えるだけ。ステージのねらいが語られたとファシリテーター（LLM）が判断したら次へ進む。学習者は「次の観点へ」（空欄でも押せる）でいつでも先へ進める。ターン数の目安はあるが上限は無い。固定文言のステージは1回で答える。問題提示（`problem`）は初期入力なので1回答えたら進み、掘り下げない。問題提示・締めの問い・次に試すことは空欄では進めない
+- **進め方 B（`flexible`）**: 学習者は答えるだけ。ステージのねらいが語られたとファシリテーター（LLM）が判断したら次へ進む。学習者は「次の観点へ」（空欄でも押せる）でいつでも先へ進める。ターン数の目安はあるが上限は無い。締めの問いと次に試すことは1回で答える。問題提示（`problem`）は初期入力なので1回答えたら進み、掘り下げない。問題提示・締めの問い・次に試すことは空欄では進めない
 
 進め方 B では、各ターンでファシリテーターの判断を経て、進むか留まるかと次の問いを決める（[prompt-design.md](./prompt-design.md) §5）。
 
@@ -83,7 +86,8 @@ sessions/{sessionId}
   problem                              # 開始の問いかけへの回答（最初の問題）。評価の起点
   memo
   closingInsight                       # 締めの問いへの回答。主な分析対象
-  actionPlan, sessionReview            # 次に試すこと・振り返りの振り返りへの回答
+  actionPlan                           # 次に試すことへの回答
+  sessionReview, reviewedAt            # 振り返りの振り返り（任意。Try の後に送られる）
   tryPlan                              # actionPlan を中心に整理した Try
   turnCount, messageCount
   metrics: { totalUserChars, totalAssistantChars, latencySumMs, aiResponseCount, durationMs }

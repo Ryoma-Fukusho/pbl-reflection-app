@@ -2,6 +2,8 @@ import "server-only";
 
 import { generateText, type ClaudeTurn } from "@/lib/claude";
 import {
+  ACKNOWLEDGE_INSTRUCTION,
+  ACTION_PLAN_INSTRUCTION,
   COMMON_SYSTEM,
   FACILITATION_SCHEMA,
   FACILITATOR_SYSTEM,
@@ -166,6 +168,34 @@ export async function generateFacilitatedQuestion(
 }
 
 /** 「次に試すこと」への答えを中心に、Try を本人の言葉のまま整理する */
+/**
+ * 締めの問いの直前に置く受け止めを生成する。締めの問い自体は固定文言のまま。
+ * 進め方 B では、直前のステージの判断をこのメッセージに残す（固定文言には判断を付けないため）。
+ */
+export async function generateAcknowledgement(
+  session: SessionContext,
+  messages: Pick<StoredMessage, "role" | "content">[],
+  judgment: Judgment | null
+): Promise<MessageInput> {
+  const result = await generateText({
+    systemInstruction: [COMMON_SYSTEM, ACKNOWLEDGE_INSTRUCTION].join("\n"),
+    turns: toTurns(session, messages),
+  });
+  return { ...toAssistantMessage(result, "closing_insight"), facilitation: judgment ?? undefined };
+}
+
+/** 次に試すことを本人に問う。締めの答えを受け止めて、会話の流れで聞く */
+export async function generateActionPlanQuestion(
+  session: SessionContext,
+  messages: Pick<StoredMessage, "role" | "content">[]
+): Promise<MessageInput> {
+  const result = await generateText({
+    systemInstruction: [COMMON_SYSTEM, ACTION_PLAN_INSTRUCTION].join("\n"),
+    turns: toTurns(session, messages),
+  });
+  return toAssistantMessage(result, "action_plan");
+}
+
 export async function generateTryPlan(
   session: SessionContext,
   messages: Pick<StoredMessage, "role" | "content">[],

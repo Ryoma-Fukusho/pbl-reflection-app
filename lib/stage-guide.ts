@@ -67,15 +67,9 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
   action_plan: {
     label: "次に試すこと",
     phase: "アクションプランの提示 / ALACT 第4局面",
-    description: "言い直した問題に対して、次の活動で試してみたいことを自分で決める",
+    description: "ここまでを踏まえて、次の活動で試してみたいことを自分で決める",
     goal: "",
     answerRequired: true,
-  },
-  session_review: {
-    label: "振り返りの振り返り",
-    phase: "質問会議の振り返り",
-    description: "今日の問いの中で、考えるきっかけになったものを振り返る(任意)",
-    goal: "",
   },
   try_plan: {
     label: "行動計画",
