@@ -30,7 +30,12 @@ GitHub の main ブランチ ──push──▶ Vercel が自動でビルド �
 
 ## 1. Vercel にプロジェクトを作る（初回だけ）
 
-すでに Vercel にプロジェクトがあるなら飛ばす。
+既存のプロジェクト（`pbl-reflection-app.vercel.app`）を使う場合は、作り直さずに次の2点だけ確かめて手順 2 へ進む。URL が変わらないので、Firebase の承認済みドメインも1つで済む。
+
+- **Settings → Git** で、つながっているリポジトリが `Ryoma-Fukusho/pbl-reflection-app` で、Production Branch が `main` であること
+- すでに登録されている環境変数も、今の `.env.local` と見比べて古い値や足りない変数がないこと（手順 2）
+
+新しく作る場合は次のとおり。
 
 1. [vercel.com](https://vercel.com) に GitHub アカウントでログインする
 2. **Add New → Project** を押し、`Ryoma-Fukusho/pbl-reflection-app` を **Import** する
