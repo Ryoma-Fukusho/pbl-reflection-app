@@ -17,7 +17,12 @@ export type StageGuide = {
   phase: string;
   /** このステージで何をするかの一言。学習者が一人で振り返るときにも使えるように書く */
   description: string;
-  /** 進め方 B で、これが語られたら次のステージへ進む（ファシリテーターが判断するステージだけ） */
+  /**
+   * 進め方 B で、これが満たされたら次のステージへ進む（ファシリテーターが判断するステージだけ）。
+   * ALACT の局面の役割に合わせて書く。第2局面（事実・相手の視点）は振り返って思い出す局面なので
+   * 「必要な材料がそろったか」を、第3局面（本当の願い）は気づきの局面なので「本人の解釈として語られたか」を見る。
+   * 思い出す局面で気づきまで求めると、答えても答えても先に進まない。
+   */
   goal: string;
   /**
    * 初期入力のステージなら true。進め方 B でも1回答えたら次へ進み、掘り下げない。
@@ -43,19 +48,19 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
     label: "事実",
     phase: "問題の明確化 / ALACT 第2局面(自分の側)",
     description: "その場面で何が起き、自分が何をし、何を考え、どう感じたかを思い出す",
-    goal: "その場面で自分が何をした（しなかった）か、何を考え、どう感じたかが、本人の言葉で語られた",
+    goal: "その場面で自分が何をした（しなかった）かと、そのとき何を考えたか、またはどう感じたかが、具体的に語られた",
   },
   feeling_other: {
     label: "相手の視点",
     phase: "問題の明確化 / ALACT 第2局面(相手の側)",
     description: "相手の側に立って、相手が何を考え、どう感じ、自分がどう映っていたかを想像する",
-    goal: "相手の側に立った想像（相手が何を考え、感じ、望んでいたか、自分がどう映っていたか）が本人の言葉で語られた。相手の様子の観察だけでは足りない",
+    goal: "問題の場面にかかわった相手が何を考え、感じ、望んでいたかが、相手の立場に立った想像として1つ以上語られた。相手の様子の観察だけでは足りない",
   },
   essence: {
     label: "本当の願い",
     phase: "問題の明確化 / ALACT 第3局面",
     description: "自分は本当は何を望んでいたのか、相手の望みとどこがずれていたのかに気づく",
-    goal: "本人が本当は何を望んでいたかが、出来事の報告ではなく本人の気づきとして語られた",
+    goal: "本人が本当は何を望んでいたかが、出来事の報告ではなく本人の解釈として語られた",
   },
   closing_insight: {
     label: "問題の言い直し",
@@ -80,56 +85,84 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
 };
 
 /**
- * 進め方 B で、1つのステージに使うターン数の目安。
+ * 進め方 B で、1つのステージで答える回数の上限。これに達したら判断によらず次へ進む。
  *
- * 質問会議でも問題の明確化は時間の目安で区切られている（舘野ら 2015 の表2では20分）。
- * 目安に達してもまだ終わっていなければ、まず「まだ話していないことはあるか」と催促し、
- * それに答えたら区切る。いきなり打ち切ると話の途中で観点が切り替わるため。
+ * 第2局面（事実・相手の視点）は材料がそろえば足りるので短く、気づきを求める本当の願いだけ長くする。
+ * 質問会議でも問題の明確化は時間で区切られている（舘野ら 2015 の表2では20分）。
  */
-export const STAGE_TURN_BUDGET: Record<FacilitatedStage, number> = {
+export const STAGE_TURN_LIMIT: Record<FacilitatedStage, number> = {
   problem: 1,
-  fact: 4,
-  feeling_other: 4,
-  essence: 4,
+  fact: 2,
+  feeling_other: 2,
+  essence: 3,
 };
 
-/** 目安の何倍で強制的に区切るか。ここまで来たら判断によらず次へ進む（仮の値） */
-export const HARD_LIMIT_FACTOR = 2;
+/**
+ * この回数に達してもねらいが満たされていなければ、次の問いで「まだ話していないことはあるか」と催促する。
+ * いきなり区切ると話の途中で観点が切り替わるため、上限の1つ手前で一度だけ聞く。
+ */
+export const STAGE_NUDGE_AT: Partial<Record<FacilitatedStage, number>> = {
+  essence: 2,
+};
+
+/**
+ * STEP 2（事実・相手の視点・本当の願い）で答える回数の合計の上限。これに達したら締めの問いへ進む。
+ * 利用場面は週ごとの活動の後に一人で使う形なので、対話全体で答える回数を8回程度
+ * （問題提示1 + STEP 2 の6 + 締め1、ほかに次に試すこと1）に収める。
+ */
+export const STEP2_TURN_LIMIT = 6;
+
+/** STEP 2 にあたるステージ。合計の上限を数えるのに使う */
+export const STEP2_STAGES: readonly FacilitatedStage[] = ["fact", "feeling_other", "essence"];
 
 /**
  * 進め方 B で、ステージを終えたか（次へ進むか）の理由。
  *
- * insight        ねらいが本人の気づきとして語られた
- * after_nudge    目安に達して催促し、それに答えた
- * hard_limit     目安の HARD_LIMIT_FACTOR 倍に達した
+ * goal_met       ねらいが満たされた
+ * saturated      2回続けて、新しく出てくるものが尽きていた
+ * limit          そのステージの上限（STAGE_TURN_LIMIT）に達した
+ * step_limit     STEP 2 の合計の上限（STEP2_TURN_LIMIT）に達した。締めの問いへ進む
  * learner_next   学習者が「次の観点へ」を押した
  * initial_input  初期入力のステージ（問題提示）なので1回で進む
  * stay           まだ終えない（nudge: 次の問いで催促する）
  */
-export type StageDecision = "insight" | "after_nudge" | "hard_limit" | "learner_next" | "initial_input" | "stay" | "nudge";
+export type StageDecision =
+  | "goal_met"
+  | "saturated"
+  | "limit"
+  | "step_limit"
+  | "learner_next"
+  | "initial_input"
+  | "stay"
+  | "nudge";
 
 /**
- * ステージを終えるかを決める。LLM の判断（level と flow）を材料にするが、終えるかどうかはこのコードで決める。
- * LLM に終えるかまで決めさせると、目安のターン数を数え違えて終えることがあったため。
+ * ステージを終えるかを決める。LLM の判断（goal_met・saturated・flow）を材料にするが、終えるかどうかはこのコードで決める。
+ * LLM に終えるかまで決めさせると、回数を数え違えて終えることがあったため。
  *
- * 本人が自分から話を移したターン（learner_shift）では、気づきが出ていても終えない。
- * 気づきが出た瞬間に終えると、本人が一番話したいところでシステムが話を閉じてしまうため。
+ * 本人が自分から話を移したターン（learner_shift）では、ねらいが満たされていても終えない。
+ * 本人が一番話したいところでシステムが話を閉じてしまうため。ただし上限は優先する。
+ *
+ * @param step2Turns STEP 2 で答えた回数の合計（今回の答えを含む）
+ * @param previousSaturated このステージの1つ前の判断で、出し切っていたか
  */
 export function decideStage(params: {
   stage: FacilitatedStage;
   turnsInStage: number;
-  level: string;
+  step2Turns: number;
+  goalMet: boolean;
+  saturated: boolean;
+  previousSaturated: boolean;
   flow: string;
   pressedNext: boolean;
 }): StageDecision {
-  const budget = STAGE_TURN_BUDGET[params.stage];
   if (params.pressedNext) return "learner_next";
   if (STAGE_GUIDE[params.stage].initialInput) return "initial_input";
-  if (params.turnsInStage >= budget * HARD_LIMIT_FACTOR) return "hard_limit";
-  if (params.flow === "learner_shift") return params.turnsInStage === budget ? "nudge" : "stay";
-  if (params.level === "insight") return "insight";
-  if (params.turnsInStage > budget) return "after_nudge";
-  if (params.turnsInStage === budget) return "nudge";
+  if (params.step2Turns >= STEP2_TURN_LIMIT) return "step_limit";
+  if (params.turnsInStage >= STAGE_TURN_LIMIT[params.stage]) return "limit";
+  if (params.saturated && params.previousSaturated) return "saturated";
+  if (params.goalMet && params.flow !== "learner_shift") return "goal_met";
+  if (STAGE_NUDGE_AT[params.stage] === params.turnsInStage) return "nudge";
   return "stay";
 }
 

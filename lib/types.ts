@@ -110,13 +110,14 @@ export type FacilitationView = {
   focus: string;
   /** いま掘っている話（学習者の言葉） */
   thread: string;
-  /** 話の状態・ねらいへの到達・理由。学習者には出さず、?debug=1 のときだけ表示する */
+  /** 話の状態・ねらいが満たされたか・出し切ったか・理由。学習者には出さず、?debug=1 のときだけ表示する */
   flow: string;
-  level: string;
+  goalMet: boolean;
+  saturated: boolean;
   reason: string;
   /** その時点でのステージ内のターン数 */
   turnsInStage: number;
-  /** 終えるかどうかをコードで決めた結果（insight / after_nudge / hard_limit / learner_next / initial_input / stay / nudge） */
+  /** 終えるかどうかをコードで決めた結果（lib/stage-guide.ts の StageDecision） */
   decision: string;
 };
 

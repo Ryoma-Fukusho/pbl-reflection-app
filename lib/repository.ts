@@ -126,7 +126,9 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
           focus: message.facilitation.focus,
           thread: message.facilitation.thread,
           flow: message.facilitation.flow,
-          level: message.facilitation.level,
+          // goal_met・saturated がない古い記録は、level（3段階の到達度）から読む
+          goalMet: message.facilitation.goal_met ?? (message.facilitation as { level?: string }).level === "insight",
+          saturated: message.facilitation.saturated ?? false,
           reason: message.facilitation.reason,
           turnsInStage: message.facilitation.turnsInStage,
           decision: message.facilitation.decision,

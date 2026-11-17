@@ -34,6 +34,7 @@ import {
   nextStage,
   type DialogueStage,
   type PostMessageResponse,
+  type Stage,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -125,17 +126,21 @@ export async function POST(
     const sofar = [...history, ...outgoing];
 
     // 進むかどうか。進め方 A は常に進む。
-    // 進め方 B は、ファシリテーター（LLM）の判断を材料に、コードの規則で決める（気づきが語られた・
-    // 催促に答えた・目安の2倍に達した・「次の観点へ」を押した、のどれかで進む）。
+    // 進め方 B は、ファシリテーター（LLM）の判断を材料に、コードの規則で決める（ねらいが満たされた・
+    // 2回続けて出し切った・上限に達した・「次の観点へ」を押した、のどれかで進む）。
     // 判断は毎回行う。進む場合も、扱っている問題と掘る話を次のステージの問いに引き継ぐため。
     let judgment: Judgment | null = null;
     if (isFlexible && isFacilitatedStage(currentStage)) {
-      const turnsInStage = sofar.filter((message) => message.role === "user" && message.stage === currentStage).length;
-      judgment = await judgeStage(sofar, currentStage, turnsInStage, wantsNext);
+      judgment = await judgeStage(sofar, currentStage, wantsNext);
     }
-    // 終えるかどうかは decideStage（lib/stage-guide.ts）の規則で決まっている
+    // 終えるかどうかは decideStage（lib/stage-guide.ts）の規則で決まっている。
+    // STEP 2 の合計の上限に達したら、残りの観点を飛ばして締めの問いへ進む
     const stay = judgment !== null && !isStageDone(judgment.decision);
-    const next = stay ? currentStage : nextStage(currentStage);
+    const next: Stage = stay
+      ? currentStage
+      : judgment?.decision === "step_limit"
+        ? "closing_insight"
+        : nextStage(currentStage);
     const turnCount = session.turnCount + (userMessage ? 1 : 0);
 
     const sessionPatch: Record<string, unknown> = {

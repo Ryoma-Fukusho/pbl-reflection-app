@@ -15,7 +15,7 @@ import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
  * 文面を変えたら PROMPT_VERSION を上げること。sessions と messages に記録され、
  * どの文面で集めたデータかを後から特定するのに使う。
  */
-export const PROMPT_VERSION = "v12";
+export const PROMPT_VERSION = "v13";
 
 /**
  * LLM のふるまい。細かい禁止を積み上げると問いが機械的になるので、研究の骨格として
@@ -37,8 +37,15 @@ export const COMMON_SYSTEM = [
   "相手がうまく言葉にできていないことを、仮の言葉にして差し出してよい。その場合は決めつけず、「〜という感じでしょうか。違っていたら教えてください」のように本人に確かめる形にすること。",
 ].join("\n");
 
-/** 問いを出す指示の末尾に付ける */
-const QUESTION_RULE = "返答の最後には、本人が考えを進めるための問いを1つだけ置くこと。";
+/**
+ * 問いを出す指示の末尾に付ける。1回に問いが複数あると、答える側はどれに答えるかを考え、
+ * 全部に答えようとして文章が長くなる。生成後にも lib/conversation.ts で問いの数を確かめる。
+ */
+export const QUESTION_RULE =
+  "問いは1つだけにし、返答の最後に置くこと。「〜ですか、〜ですか」のように1つの文に問いを並べたり、同じ問いを言い換えて重ねたりしないこと。受け止めは一言にとどめ、相手の答えが短いときは受け止めを省いてよい。";
+
+/** 生成した返答に問いが2つ以上あったとき、作り直しの指示に足す */
+export const ONE_QUESTION_RETRY = "問いが2つ以上ある返答は使えません。問いを1つだけにして返すこと。";
 
 /** 会話の先頭に置く前提。最初の問題とメモを、ステージが進んでも見失わないようにする */
 export function buildContextText(problem: string, memo: string): string {
@@ -87,7 +94,7 @@ export const STAGE_INSTRUCTIONS: Record<GeneratedStage, string> = {
 
   // 他責的な問題認識を崩す鍵になる、相手の側に立つ視点。相手は問題の場面にかかわった人。
   feeling_other:
-    "いまは「相手の視点」のステージです。問題の場面にかかわった相手（リーダーやメンバーなど）の側に立って、相手が何を考え、感じ、望んでいたか、本人の行動が相手からどう映っていたかを想像してもらいます。問いの主語は相手にし、相手の様子を観察させるのではなく、相手の側に立った想像を促します。",
+    "いまは「相手の視点」のステージです。問題の場面にかかわった相手（リーダーやメンバーなど）の側に立って、相手が何を考え、感じ、望んでいたかを想像してもらいます。本人の行動が相手からどう映っていたかも、その手がかりの1つです。問いの主語は相手にし、相手の様子を観察させるのではなく、相手の側に立った想像を促します。",
 
   essence:
     "いまは「本当の願い」のステージです。出来事の表面的な不満の背後で、本人が本当はどうしたかったのか（願いや目的）を引き出します。相手への要望ではなく、本人がどうしたかったかを聞きます。前のステージで願いに近いこと（「〜したかった」「〜になりたい」など）がすでに語られていれば、聞き直さず、その言葉を手がかりに掘り下げます。",
@@ -105,18 +112,21 @@ export function stageQuestionInstruction(stage: GeneratedStage): string {
 export type FlowJudgment = "on_track" | "learner_shift" | "drifting" | "shallow";
 
 /**
- * ステージのねらいに対して、学習者の発言がどこまで来たか。丸山・森本が振り返りの記述を
- * 「事実の想起」「気づきを伴う振り返り」などの段階に分類し、段階に応じて支援を変えたのにならう。
- * 次へ進むかは、これを材料に lib/stage-guide.ts の decideStage が決める。
+ * ファシリテーターの判断。sessions/{id}/messages の assistant メッセージに facilitation として残す。
+ * 次へ進むかは、goal_met と saturated を材料に lib/stage-guide.ts の decideStage が決める。
+ *
+ * goal_met は「そのステージのねらいが満たされたか」。ねらいはステージの役割に合わせて書いてあり、
+ * ALACT の第2局面（事実・相手の視点）は材料がそろったか、第3局面（本当の願い）は本人の解釈として
+ * 語られたかを見る（lib/stage-guide.ts の goal）。
+ * saturated は「その観点で新しく出てくるものが尽きたか」。短い答えや繰り返しは、掘り続けても
+ * 出てこないサインなので、続いたら次へ進む。
  */
-export type GoalLevel = "not_yet" | "report" | "insight";
-
-/** ファシリテーターの判断。sessions/{id}/messages の assistant メッセージに facilitation として残す */
 export type Facilitation = {
   focus: string;
   thread: string;
   flow: FlowJudgment;
-  level: GoalLevel;
+  goal_met: boolean;
+  saturated: boolean;
   reason: string;
 };
 
@@ -127,10 +137,11 @@ export const FACILITATION_SCHEMA = {
     focus: { type: "string" },
     thread: { type: "string" },
     flow: { type: "string", enum: ["on_track", "learner_shift", "drifting", "shallow"] },
-    level: { type: "string", enum: ["not_yet", "report", "insight"] },
+    goal_met: { type: "boolean" },
+    saturated: { type: "boolean" },
     reason: { type: "string" },
   },
-  required: ["focus", "thread", "flow", "level", "reason"],
+  required: ["focus", "thread", "flow", "goal_met", "saturated", "reason"],
   additionalProperties: false,
 } as const;
 
@@ -144,8 +155,8 @@ export const FACILITATOR_SYSTEM = [
   "learner_shift = 直近の学習者の発言で、学習者が自分から、より根本的な問題（自分の願い、チームへの関わり方、メンバーとの関係など）へ話を移した。",
   "drifting = 直近のやり取りが、focus と関係の薄い細部や別の話題に移っている。問いの側が連れていった場合も含む。",
   "shallow = 同じところに留まり、短い答えや表面的な答えが続いている。",
-  "level: 現在のステージのねらいに対して、学習者の発言がどこまで来たかを次から1つ選ぶ。",
-  "not_yet = ねらいにまだ触れていない。report = ねらいに触れているが、出来事の報告にとどまっている。insight = ねらいが本人の言葉で、本人の解釈や気づきとして語られた。",
+  "goal_met: このステージのねらいが、ここまでの学習者の発言で満たされていれば true。ねらいに書かれていること以上（ほかのステージで聞くことや、より深い気づき）は求めないこと。",
+  "saturated: 直近の学習者の答えに、この観点について新しく出てきたことがほとんどなければ true。「特にない」「わからない」「別に」のような短い答えや、前と同じ内容の繰り返しがこれにあたる。",
   "reason: 判断の理由を一文で。",
 ].join("\n");
 
@@ -170,12 +181,13 @@ export function facilitatedQuestionInstruction(params: {
   nudge: boolean;
   judgment: Facilitation;
 }): string {
-  const { focus, thread, flow } = params.judgment;
+  const { focus, thread, flow, saturated } = params.judgment;
   const context = [focus ? `学習者がいま扱っている問題は「${focus}」です。` : "", STAGE_INSTRUCTIONS[params.stage]].join(" ");
 
+  // 面接の漏斗型の聞き方: その観点の最初は開いた問いで広く聞き、2回目からは本人の言葉に絞った具体的な問いにする
   const action = (() => {
     if (params.isNewStage) {
-      return "このステージの最初の問いです。聞く観点が変わることを「では次に、〜について聞かせてください」のように短く伝えてから問うこと。";
+      return "このステージの最初の問いです。聞く観点が変わることを「では次に、〜について聞かせてください」のように短く伝えてから、開いた問いを1つ出すこと。";
     }
     if (params.nudge) {
       // 目安に達したので、いきなり区切らずに、まだ話していないことがないかを聞く。次の答えで区切る
@@ -185,12 +197,17 @@ export function facilitatedQuestionInstruction(params: {
       // 質問会議の ALC と同じく、中身を力ずくで戻さず、進み方について問いかける。1つのステージで1回まで
       return "直近の話は、この問題から離れてきています。力ずくで戻さず、いま話していることとこの問題とのつながりを、学習者自身に尋ねること（例: いま話している〇〇は、最初に話してくれた△△とつながっていますか？）。";
     }
-    if (flow === "shallow") {
-      return "直近は短い答えや表面的な答えが続いています。同じことを聞き直さず、すぐ答えられる具体的な問いにすること。";
+    if (flow === "shallow" || saturated) {
+      return [
+        "直近の答えは短いか、新しく出てきたことがあまりありません。同じことを聞き直さず、すぐ答えられる具体的な問いにすること。",
+        thread ? `手がかりには学習者の言葉「${thread}」を使うこと。` : "",
+      ].join(" ");
     }
     return [
       flow === "learner_shift" ? "学習者が自分から話を移した先についていくこと。" : "",
-      thread ? `学習者の言葉「${thread}」を手がかりに掘り下げること。` : "",
+      thread
+        ? `広く聞き直さず、学習者の言葉「${thread}」に絞った具体的な問いで掘り下げること。`
+        : "広く聞き直さず、直前の答えに絞った具体的な問いで掘り下げること。",
     ].join(" ");
   })();
 

@@ -52,7 +52,16 @@ type Stored = {
   session: SessionSummary;
   messages: ChatMessage[];
   memo: string;
+  /** 最後に保存した時刻（ミリ秒）。画面の状態が変わるたびに更新する */
+  savedAt: number;
 };
+
+/**
+ * 下書きを復元する期限。最後の操作からこれより時間が経った下書きは捨てて、最初から始める。
+ * 開いたまま閉じた対話が日をまたいで再開されると、1つのセッションの所要時間が数週間と記録され、
+ * 1回の振り返りとして分析できなくなるため。サーバー側には active のまま残り、分析では離脱として扱う。
+ */
+const DRAFT_TTL_MS = 3 * 60 * 60 * 1000;
 
 function readStored(storageKey: string): Stored | null {
   try {
@@ -61,12 +70,14 @@ function readStored(storageKey: string): Stored | null {
 
     const parsed = JSON.parse(raw) as Partial<Stored>;
     if (!parsed.session?.sessionId || !Array.isArray(parsed.messages)) return null;
+    if (typeof parsed.savedAt !== "number" || Date.now() - parsed.savedAt > DRAFT_TTL_MS) return null;
 
     return {
       // turnMode が無いのは進め方を選べるようになる前の下書き。当時は全て進め方 A
       session: { ...parsed.session, turnMode: parsed.session.turnMode ?? "fixed" },
       messages: parsed.messages,
       memo: typeof parsed.memo === "string" ? parsed.memo : "",
+      savedAt: parsed.savedAt,
     };
   } catch {
     return null;
@@ -111,7 +122,7 @@ export default function DialogueWorkspace() {
     if (!hydrated) return;
 
     if (session) {
-      window.localStorage.setItem(storageKey, JSON.stringify({ session, messages, memo }));
+      window.localStorage.setItem(storageKey, JSON.stringify({ session, messages, memo, savedAt: Date.now() } satisfies Stored));
     } else {
       window.localStorage.removeItem(storageKey);
     }

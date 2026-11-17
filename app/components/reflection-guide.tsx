@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckMark, Panel } from "@/app/components/ui";
-import { STAGE_GUIDE, STAGE_TURN_BUDGET } from "@/lib/stage-guide";
+import { STAGE_GUIDE, STAGE_TURN_LIMIT } from "@/lib/stage-guide";
 import { DIALOGUE_STAGES, type FacilitationView, type Stage, type TurnMode } from "@/lib/types";
 
 const FLOW_LABELS: Record<string, string> = {
@@ -12,19 +12,14 @@ const FLOW_LABELS: Record<string, string> = {
 };
 
 const DECISION_LABELS: Record<string, string> = {
-  insight: "終える(気づきとして語られた)",
-  after_nudge: "終える(催促に答えた)",
-  hard_limit: "終える(目安の2倍に達した)",
+  goal_met: "終える(ねらいが満たされた)",
+  saturated: "終える(2回続けて出し切った)",
+  limit: "終える(この観点の上限に達した)",
+  step_limit: "終える(STEP 2 の合計の上限に達した。締めの問いへ)",
   learner_next: "終える(「次の観点へ」が押された)",
   initial_input: "終える(初期入力)",
   stay: "続ける",
   nudge: "続ける(次の問いで催促する)",
-};
-
-const LEVEL_LABELS: Record<string, string> = {
-  not_yet: "ねらいにまだ触れていない",
-  report: "報告にとどまる",
-  insight: "気づきとして語られた",
 };
 
 /**
@@ -132,15 +127,16 @@ export default function ReflectionGuide({
         流れは質問会議の手順に、問いの観点はALACTモデルの局面に沿っています。第1局面(行為)は今日のPBL活動そのもの、第5局面(試行)は次のPBL活動です。
       </p>
 
-      {debug && turnMode === "flexible" && facilitation && stage && stage in STAGE_TURN_BUDGET ? (
+      {debug && turnMode === "flexible" && facilitation && stage && stage in STAGE_TURN_LIMIT ? (
         <div className="mt-4 rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] px-3 py-2 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
           <p className="font-medium text-[var(--text)]">判断(開発用)</p>
           <p>判断したステージ: {STAGE_GUIDE[facilitation.judgedStage].label}</p>
           <p>話の状態: {FLOW_LABELS[facilitation.flow] ?? facilitation.flow}</p>
-          <p>ねらい: {LEVEL_LABELS[facilitation.level] ?? facilitation.level}</p>
+          <p>ねらい: {facilitation.goalMet ? "満たされた" : "まだ"}</p>
+          <p>出し切った: {facilitation.saturated ? "はい" : "いいえ"}</p>
           <p>終えるかの決定: {DECISION_LABELS[facilitation.decision] ?? facilitation.decision}</p>
           <p>
-            ターン数: {turnsInStage}(目安 {STAGE_TURN_BUDGET[stage as keyof typeof STAGE_TURN_BUDGET]})
+            ターン数: {turnsInStage}(上限 {STAGE_TURN_LIMIT[stage as keyof typeof STAGE_TURN_LIMIT]})
           </p>
           <p>理由: {facilitation.reason}</p>
           <p className="mt-1 text-[var(--text-muted)]">今のステージのねらい: {STAGE_GUIDE[stage].goal}</p>
