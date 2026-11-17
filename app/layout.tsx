@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "振り返りアシスト",
-  description: "コルトハーヘンの ALACT モデルに沿った AI 対話で、PBL の振り返りを支援するシステム",
+  description: "PBL活動の振り返りを支援する研究用のWebシステム",
 };
 
 export default function RootLayout({
