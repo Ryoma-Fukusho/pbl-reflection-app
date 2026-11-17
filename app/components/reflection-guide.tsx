@@ -2,7 +2,7 @@
 
 import { CheckMark, Panel } from "@/app/components/ui";
 import { STAGE_GUIDE, STAGE_TURN_LIMIT } from "@/lib/stage-guide";
-import { DIALOGUE_STAGES, type FacilitationView, type Stage, type TurnMode } from "@/lib/types";
+import { DIALOGUE_STAGES, type FacilitationView, type Stage } from "@/lib/types";
 
 const FLOW_LABELS: Record<string, string> = {
   on_track: "順調",
@@ -16,7 +16,6 @@ const DECISION_LABELS: Record<string, string> = {
   saturated: "終える(2回続けて出し切った)",
   limit: "終える(この観点の上限に達した)",
   step_limit: "終える(STEP 2 の合計の上限に達した。締めの問いへ)",
-  learner_next: "終える(「次の観点へ」が押された)",
   initial_input: "終える(初期入力)",
   stay: "続ける",
   nudge: "続ける(次の問いで催促する)",
@@ -32,14 +31,12 @@ const DECISION_LABELS: Record<string, string> = {
  */
 export default function ReflectionGuide({
   stage,
-  turnMode,
   facilitation,
   turnsInStage,
   debug,
 }: {
   stage: Stage | null;
-  turnMode: TurnMode;
-  /** 最後に出た問いの判断。進め方 A と、最初の問いの前は無い */
+  /** 最後に出た問いの判断。最初の問いの前は無い */
   facilitation?: FacilitationView;
   /** 今のステージで学習者が話したターン数 */
   turnsInStage: number;
@@ -127,7 +124,7 @@ export default function ReflectionGuide({
         流れは質問会議の手順に、問いの観点はALACTモデルの局面に沿っています。第1局面(行為)は今日のPBL活動そのもの、第5局面(試行)は次のPBL活動です。
       </p>
 
-      {debug && turnMode === "flexible" && facilitation && stage && stage in STAGE_TURN_LIMIT ? (
+      {debug && facilitation && stage && stage in STAGE_TURN_LIMIT ? (
         <div className="mt-4 rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] px-3 py-2 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
           <p className="font-medium text-[var(--text)]">判断(開発用)</p>
           <p>判断したステージ: {STAGE_GUIDE[facilitation.judgedStage].label}</p>

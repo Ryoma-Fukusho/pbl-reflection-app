@@ -18,7 +18,6 @@ import {
   type PostMessageResponse,
   type ReviewSessionResponse,
   type SessionSummary,
-  type TurnMode,
   isGeneratedStage,
 } from "@/lib/types";
 
@@ -32,21 +31,27 @@ import {
 const STORAGE_PREFIX = "pbl-reflection-dialogue:v1";
 
 
-/** 開始画面で選ぶ進め方。ゼミ内の試用で A と B を比べてもらうため、名前で呼べるようにしている */
-const TURN_MODE_OPTIONS: { mode: TurnMode; title: string; description: string }[] = [
+/**
+ * 開始画面で見せる流れ。初めて使う人向けに、ステージ名ではなく「何をするか」で4つにまとめる。
+ * ステージごとの説明は、始めたあと右の「振り返りの進み方」に出る。
+ */
+const START_STEPS: { title: string; description: string }[] = [
+  { title: "気になっていることを書く", description: "今日の活動で引っかかっていること、モヤモヤしていることを書きます。" },
   {
-    mode: "fixed",
-    title: "進め方A: 1問ずつ答える",
-    description: "それぞれの問いに1回ずつ答えます。答えると次の問いに進みます。",
+    title: "問いに答えて振り返る",
+    description: "そのとき何があったか、相手はどう思っていたか、自分は本当はどうしたかったかを聞かれます。",
   },
-  {
-    mode: "flexible",
-    title: "進め方B: 話に合わせて掘り下げる",
-    description: "観点ごとに、話した内容に合わせて問いを重ねます。十分に話せたら次の観点へ進みます。自分で先に進むこともできます。",
-  },
+  { title: "最初の問題を見直す", description: "最初に書いた問題が、いまどう見えるかを書きます。" },
+  { title: "次に試すことを決める", description: "あなたの言葉のまま、次の活動での行動計画にまとめます。" },
 ];
 
-const TURN_MODE_NAMES: Record<TurnMode, string> = { fixed: "進め方A", flexible: "進め方B" };
+/** 開始画面の注意書き。共有範囲の書き方は導入実験の事前説明と揃える */
+const START_NOTES = [
+  "正解はありません。短い答えや「わからない」でもかまいません。",
+  "所要時間はおよそ10〜15分で、答えるのは8回前後です。",
+  "内容は、プロジェクトにかかわる教員やチームメンバーには共有されません。研究データとして記録し、個人を特定できる情報と切り離して研究者だけが見ます。",
+  "途中で気づいたことは、右のメモ欄に自由に書けます。途中でやめるときは「中断する」を押してください。",
+];
 
 type Stored = {
   session: SessionSummary;
@@ -73,8 +78,7 @@ function readStored(storageKey: string): Stored | null {
     if (typeof parsed.savedAt !== "number" || Date.now() - parsed.savedAt > DRAFT_TTL_MS) return null;
 
     return {
-      // turnMode が無いのは進め方を選べるようになる前の下書き。当時は全て進め方 A
-      session: { ...parsed.session, turnMode: parsed.session.turnMode ?? "fixed" },
+      session: parsed.session,
       messages: parsed.messages,
       memo: typeof parsed.memo === "string" ? parsed.memo : "",
       savedAt: parsed.savedAt,
@@ -158,11 +162,11 @@ export default function DialogueWorkspace() {
     [clearWorkspace]
   );
 
-  const startSession = useCallback(async (turnMode: TurnMode) => {
+  const startSession = useCallback(async () => {
     setError("");
     setIsLoading(true);
     try {
-      const data = await postJson<CreateSessionResponse>("/api/sessions", { turnMode });
+      const data = await postJson<CreateSessionResponse>("/api/sessions", {});
       setSession(data.session);
       setMessages(data.messages);
       setMemo("");
@@ -176,47 +180,41 @@ export default function DialogueWorkspace() {
   }, [postJson]);
 
   const sendMessage = useCallback(
-    async (composeMs: number, next: boolean) => {
+    async (composeMs: number) => {
       if (!session || isLoading) return;
 
-      // 空欄で送れるのは、進め方 B の「次の観点へ」を押したときだけ（答えずに次へ進む）
       const content = input.trim();
-      if (!content && !(next && session.turnMode === "flexible")) return;
+      if (!content) return;
 
-      // 送信中も自分の発言はすぐ見えるようにしておく。
-      // サーバーが確定した内容で後から差し替える。空欄で進むときは出さない。
-      const optimistic: ChatMessage | null = content
-        ? {
-            id: `pending-${Date.now()}`,
-            seq: messages.length,
-            role: "user",
-            content,
-            stage: session.stage,
-            generated: false,
-          }
-        : null;
+      // 送信中も自分の発言はすぐ見えるようにしておく。サーバーが確定した内容で後から差し替える
+      const optimistic: ChatMessage = {
+        id: `pending-${Date.now()}`,
+        seq: messages.length,
+        role: "user",
+        content,
+        stage: session.stage,
+        generated: false,
+      };
 
       setInput("");
-      if (optimistic) {
-        setMessages((current) => [...current, optimistic]);
-      }
+      setMessages((current) => [...current, optimistic]);
       setError("");
       setIsLoading(true);
 
       try {
         const data = await postJson<PostMessageResponse>(
           `/api/sessions/${session.sessionId}/messages`,
-          { content, composeMs, memo, next }
+          { content, composeMs, memo }
         );
 
         setMessages((current) => [
-          ...current.filter((message) => message.id !== optimistic?.id),
+          ...current.filter((message) => message.id !== optimistic.id),
           ...data.messages,
         ]);
         setSession(data.session);
         setMemoDirty(false);
       } catch (sendError) {
-        setMessages((current) => current.filter((message) => message.id !== optimistic?.id));
+        setMessages((current) => current.filter((message) => message.id !== optimistic.id));
         setInput(content);
         handleApiError(sendError, "送信に失敗しました。");
       } finally {
@@ -240,7 +238,7 @@ export default function DialogueWorkspace() {
       setMessages((current) => [...current, ...data.messages]);
       setMemoDirty(false);
     } catch (completeError) {
-      handleApiError(completeError, "Try の生成に失敗しました。");
+      handleApiError(completeError, "行動計画の整理に失敗しました。もう一度押してください。");
     } finally {
       setIsLoading(false);
     }
@@ -282,8 +280,8 @@ export default function DialogueWorkspace() {
   const currentStageIndex =
     stage && stage !== "try_plan" ? DIALOGUE_STAGES.indexOf(stage) : DIALOGUE_STAGES.length;
 
-  // 進め方 B で「次の観点へ」を出すか。問いを掘り下げるステージ（事実・相手の視点・本当の願い）だけに出す
-  const isFlexibleStage = session?.turnMode === "flexible" && !!stage && isGeneratedStage(stage);
+  // 問いを掘り下げるステージ（事実・相手の視点・本当の願い）か
+  const isDiggingStage = !!stage && isGeneratedStage(stage);
   // 最後に出た問いの、ファシリテーターの判断
   const lastQuestion = [...messages].reverse().find((message) => message.role === "assistant");
   const facilitation = lastQuestion?.facilitation;
@@ -324,10 +322,10 @@ export default function DialogueWorkspace() {
               <div className="flex flex-col gap-5">
                 <div>
                   <h2 className="text-[length:var(--fs-title)] font-semibold text-[var(--text)]">
-                    AI との対話で振り返る
+                    今日の活動を、一人で振り返る
                   </h2>
                   <p className="mt-2 text-[length:var(--fs-body)] leading-7 text-[var(--text-secondary)]">
-                    今日の活動について、次の順に問いかけます。
+                    AI の問いに答えながら、今日のPBL活動で引っかかっていることを振り返ります。答えは、あなたの言葉のままで大丈夫です。
                   </p>
                 </div>
 
@@ -336,58 +334,36 @@ export default function DialogueWorkspace() {
                  * カードを並べるより密度が上がり、印刷しても格子が残る。
                  */}
                 <ol className="grid gap-px overflow-hidden rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
-                  {DIALOGUE_STAGES.map((stageName, index) => (
-                    <li
-                      key={stageName}
-                      className="flex items-center gap-3 bg-[var(--surface-1)] px-4 py-3 text-[length:var(--fs-body)] text-[var(--text)]"
-                    >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-[var(--line-strong)] text-[length:var(--fs-micro)] font-semibold tabular-nums text-[var(--text-secondary)]">
+                  {START_STEPS.map((step, index) => (
+                    <li key={step.title} className="flex gap-3 bg-[var(--surface-1)] px-4 py-3">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--accent)] text-[length:var(--fs-micro)] font-semibold tabular-nums text-[var(--accent-ink)]">
                         {index + 1}
                       </span>
-                      {STAGE_GUIDE[stageName].label}
+                      <div>
+                        <p className="text-[length:var(--fs-body)] font-semibold text-[var(--text)]">{step.title}</p>
+                        <p className="mt-0.5 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
+                          {step.description}
+                        </p>
+                      </div>
                     </li>
                   ))}
-                  <li className="flex items-center gap-3 bg-[var(--accent-soft)] px-4 py-3 text-[length:var(--fs-body)] text-[var(--text)] sm:col-span-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--accent)] text-[length:var(--fs-micro)] font-semibold text-[var(--accent-ink)]">
-                      {DIALOGUE_STAGES.length + 1}
-                    </span>
-                    最後に、次に試すことを、あなたの言葉のまま行動計画（Try）として整理します。そのあと、任意で今日の振り返りそのものを振り返ります。
-                  </li>
                 </ol>
+
+                <ul className="flex flex-col gap-1.5 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
+                  {START_NOTES.map((note) => (
+                    <li key={note} className="flex gap-2">
+                      <span aria-hidden className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-[var(--text-muted)]" />
+                      {note}
+                    </li>
+                  ))}
+                </ul>
 
                 {error ? <Notice tone="error">{error}</Notice> : null}
 
-                <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
-                  <p className="text-[length:var(--fs-body)] font-semibold text-[var(--text)]">
-                    進め方を選んで始めてください
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {TURN_MODE_OPTIONS.map((option) => (
-                      <div
-                        key={option.mode}
-                        className="flex flex-col gap-3 rounded-[var(--r-md)] border border-[var(--line)] px-4 py-4"
-                      >
-                        <div>
-                          <p className="text-[length:var(--fs-body)] font-semibold text-[var(--text)]">
-                            {option.title}
-                          </p>
-                          <p className="mt-1 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">
-                            {option.description}
-                          </p>
-                        </div>
-                        <Button
-                          className="mt-auto"
-                          onClick={() => void startSession(option.mode)}
-                          disabled={isLoading || !hydrated}
-                        >
-                          {isLoading ? "準備中" : "この進め方で始める"}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">
-                    所要時間の目安は10〜15分です。対話の内容は研究データとして記録されます。
-                  </p>
+                <div className="border-t border-[var(--line)] pt-4">
+                  <Button onClick={() => void startSession()} disabled={isLoading || !hydrated}>
+                    {isLoading ? "準備しています" : "振り返りを始める"}
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -407,11 +383,11 @@ export default function DialogueWorkspace() {
                     tone="attention"
                     action={
                       <Button onClick={() => void completeSession()} disabled={isLoading}>
-                        {isLoading ? "整理中" : "行動計画（Try）を整理する"}
+                        {isLoading ? "まとめています" : "行動計画をまとめる"}
                       </Button>
                     }
                   >
-                    対話はここまでです。次に試すことを、行動計画として整理します。
+                    対話はここまでです。答えてくれた「次に試すこと」を、あなたの言葉のまま行動計画にまとめます。
                   </Notice>
                 ) : null}
 
@@ -426,7 +402,7 @@ export default function DialogueWorkspace() {
                       </Button>
                     }
                   >
-                    振り返りが完了しました({TURN_MODE_NAMES[session.turnMode]})。記録は保存されています。
+                    振り返りが完了しました。おつかれさまでした。記録は保存されています。
                   </Notice>
                 ) : null}
 
@@ -434,17 +410,14 @@ export default function DialogueWorkspace() {
                   <Composer
                     value={input}
                     onChange={setInput}
-                    onSubmit={(composeMs, next) => void sendMessage(composeMs, next)}
+                    onSubmit={(composeMs) => void sendMessage(composeMs)}
                     isLoading={isLoading}
                     placeholder="思ったことをそのまま書いてください。"
                     submitLabel="送信"
-                    nextLabel={isFlexibleStage ? "次の観点へ" : undefined}
                     hint={
-                      isFlexibleStage
-                        ? facilitation?.decision === "nudge" && facilitation.judgedStage === stage
-                          ? "この観点は、次の答えで一区切りです。"
-                          : "十分に話せたら、次の観点へ進みます。先に進みたいときは「次の観点へ」(空欄でも押せます)。"
-                        : undefined
+                      isDiggingStage && facilitation?.decision === "nudge" && facilitation.judgedStage === stage
+                        ? "この観点は、次の答えで一区切りです。"
+                        : "短い答えでも大丈夫です。"
                     }
                     actions={
                       <Button variant="quiet" onClick={() => void abandonWorkspace()}>
@@ -462,20 +435,21 @@ export default function DialogueWorkspace() {
           {session ? (
             <ReflectionGuide
               stage={session.stage}
-              turnMode={session.turnMode}
               facilitation={facilitation}
               turnsInStage={turnsInStage}
               debug={debug}
             />
           ) : null}
-          <MemoPanel
-            value={memo}
-            onChange={(next) => {
-              setMemo(next);
-              setMemoDirty(true);
-            }}
-            saveState={!session ? "idle" : memoDirty ? "pending" : "saved"}
-          />
+          {session ? (
+            <MemoPanel
+              value={memo}
+              onChange={(next) => {
+                setMemo(next);
+                setMemoDirty(true);
+              }}
+              saveState={memoDirty ? "pending" : "saved"}
+            />
+          ) : null}
         </div>
       </div>
     </main>

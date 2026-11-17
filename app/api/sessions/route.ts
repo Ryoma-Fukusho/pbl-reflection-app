@@ -3,8 +3,8 @@ import type { NextRequest } from "next/server";
 import { authenticateRequest, upsertUser } from "@/lib/auth";
 import { OPENING_MESSAGE } from "@/lib/prompts";
 import { appendMessages, createSession, toChatMessage, toSummary } from "@/lib/repository";
-import { badRequest, errorResponse, readJsonBody } from "@/lib/route-utils";
-import { isTurnMode, type CreateSessionResponse } from "@/lib/types";
+import { errorResponse } from "@/lib/route-utils";
+import type { CreateSessionResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,19 +22,12 @@ export async function POST(request: NextRequest) {
     return auth.response;
   }
 
-  const body = await readJsonBody(request);
-  if (!body) {
-    return badRequest("リクエスト形式が不正です。");
-  }
-
-  const turnMode = isTurnMode(body.turnMode) ? body.turnMode : "fixed";
-
   try {
     await upsertUser(auth.user);
 
     const session = await createSession({
       uid: auth.user.uid,
-      turnMode,
+      turnMode: "flexible",
       stage: "problem",
     });
 

@@ -57,9 +57,7 @@ export type MessageInput = {
   generated: boolean;
   /** user のみ: 入力を書き始めてから送信するまでの時間 */
   composeMs?: number;
-  /** user のみ・進め方 B のみ: send = 送信（進むかはファシリテーターが決める）、next = 「次の観点へ」を押した */
-  choice?: "send" | "next";
-  /** assistant のみ・進め方 B のみ: この問いを出す前のファシリテーターの判断と、その呼び出しのメタ情報 */
+  /** assistant のみ: この問いを出す前のファシリテーターの判断と、その呼び出しのメタ情報 */
   facilitation?: Facilitation & {
     judgedStage: Stage;
     turnsInStage: number;
@@ -68,8 +66,6 @@ export type MessageInput = {
     latencyMs: number;
     usage: TokenUsage;
   };
-  /** assistant のみ: 学習者が答えずに（空欄のまま）次のステージへ進んだ直後の問いなら true */
-  skipped?: boolean;
   /** assistant のみ: Claude 呼び出しのメタ情報 */
   latencyMs?: number;
   model?: string;
@@ -281,9 +277,7 @@ export async function appendMessages(params: {
       stage: message.stage,
       generated: message.generated,
       composeMs: message.composeMs,
-      choice: message.choice,
       facilitation: message.facilitation,
-      skipped: message.skipped,
       latencyMs: message.latencyMs,
       model: message.model,
       promptVersion: message.promptVersion,

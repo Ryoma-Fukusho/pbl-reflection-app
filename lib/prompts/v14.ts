@@ -7,8 +7,8 @@ import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
  * 構成:
  *   - COMMON_SYSTEM: LLM が話すときに常に載せる、守ることと任せること
  *   - OPENING_MESSAGE / closingQuestion: 生成させない2つの問い（開始の問いかけ・締めの問い）
- *   - STAGE_INSTRUCTIONS: 問いを生成するステージで何を引き出すか（進め方 A・B 共通）
- *   - FACILITATOR_SYSTEM / facilitatedQuestionInstruction: 進め方 B で、質問会議のファシリテーター
+ *   - STAGE_INSTRUCTIONS: 問いを生成するステージで何を引き出すか
+ *   - FACILITATOR_SYSTEM / facilitatedQuestionInstruction: 質問会議のファシリテーター
  *     （進み方の判断）とメンバー（問い）を分けて生成させる
  *   - ACKNOWLEDGE_INSTRUCTION / ACTION_PLAN_INSTRUCTION / TRY_PLAN_INSTRUCTION: 締めの前後
  *
@@ -86,7 +86,7 @@ export function closingQuestion(problem: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * ステージで何を引き出すか。進め方 A ではそのまま問いの指示に、進め方 B では毎回の文脈に使う。
+ * ステージで何を引き出すか。問いを出すたびに文脈として渡す。
  * ステージを終えてよいかの基準（ねらい）は lib/stage-guide.ts の goal にあり、ファシリテーターだけが使う。
  */
 export const STAGE_INSTRUCTIONS: Record<GeneratedStage, string> = {
@@ -100,13 +100,8 @@ export const STAGE_INSTRUCTIONS: Record<GeneratedStage, string> = {
     "いまは「本当の願い」のステージです。出来事の表面的な不満の背後で、本人が本当はどうしたかったのか（願いや目的）を引き出します。相手への要望ではなく、本人がどうしたかったかを聞きます。前のステージで願いに近いこと（「〜したかった」「〜になりたい」など）がすでに語られていれば、聞き直さず、その言葉を手がかりに掘り下げます。",
 };
 
-/** 進め方 A: ステージの問いを1つ出す指示。COMMON_SYSTEM に続けて渡す */
-export function stageQuestionInstruction(stage: GeneratedStage): string {
-  return [STAGE_INSTRUCTIONS[stage], QUESTION_RULE].join(" ");
-}
-
 // ---------------------------------------------------------------------------
-// 進め方 B: ファシリテーターの判断と、それを受けた問い
+// ファシリテーターの判断と、それを受けた問い
 // ---------------------------------------------------------------------------
 
 export type FlowJudgment = "on_track" | "learner_shift" | "drifting" | "shallow";
@@ -167,7 +162,7 @@ export function facilitatorInput(params: { stage: FacilitatedStage; transcript: 
 }
 
 /**
- * 進め方 B: ファシリテーターの判断を受けて、問いを1つ出す指示。COMMON_SYSTEM に続けて渡す。
+ * ファシリテーターの判断を受けて、問いを1つ出す指示。COMMON_SYSTEM に続けて渡す。
  *
  * @param isNewStage このステージが今から始まるなら true
  * @param processAsked このステージで、話のつながりを尋ねる問いをすでに出したか。

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useRef, type ReactNode, type SubmitEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type SubmitEvent,
+} from "react";
 
 import { Button, FIELD_CLASS } from "@/app/components/ui";
 
@@ -9,6 +17,11 @@ import { Button, FIELD_CLASS } from "@/app/components/ui";
  *
  * 「書き始めてから送信するまでの時間」(composeMs) をここで計測して親に渡す。
  * どれだけ考えてから答えたかの代理指標として、内省の深さの分析に使う。
+ *
+ * キーボードのある端末では Enter で送信し、Shift + Enter で改行する。
+ * 日本語入力の変換を確定する Enter では送信しない（isComposing で見分ける）。
+ * スマートフォンなどタッチ操作が主の端末では、画面のキーボードに Shift が無く改行できなくなるので、
+ * Enter は改行のままにして送信ボタンで送る。
  */
 export default function Composer({
   value,
@@ -17,30 +30,29 @@ export default function Composer({
   isLoading,
   placeholder,
   submitLabel,
-  nextLabel,
-  loadingLabel = "応答を待っています",
-  hint = "Enter は改行です。送信はボタンから。",
+  loadingLabel = "考えています",
+  hint,
   actions,
 }: {
   value: string;
   onChange: (next: string) => void;
-  /** next は、nextLabel のボタンで送ったら true */
-  onSubmit: (composeMs: number, next: boolean) => void;
+  onSubmit: (composeMs: number) => void;
   isLoading: boolean;
   placeholder: string;
   submitLabel: string;
-  /**
-   * 指定すると、送信ボタンの左に「次の観点へ」ボタンを出す（進め方 B）。
-   * 空欄でも押せ、押すと onSubmit に next: true が渡る
-   */
-  nextLabel?: string;
   loadingLabel?: string;
-  /** 入力欄の下に出す説明 */
+  /** 入力欄の下に出す説明。送信の仕方の案内の前に出す */
   hint?: ReactNode;
-  /** リセットや中断など、送信ボタンの左に並べる要素 */
+  /** 中断など、送信ボタンの左に並べる要素 */
   actions?: ReactNode;
 }) {
   const composeStartedAtRef = useRef<number | null>(null);
+  const [enterSends, setEnterSends] = useState(true);
+
+  useEffect(() => {
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    queueMicrotask(() => setEnterSends(!coarse));
+  }, []);
 
   const handleChange = useCallback(
     (next: string) => {
@@ -56,49 +68,55 @@ export default function Composer({
     [onChange]
   );
 
-  const submit = useCallback(
-    (next: boolean) => {
-      // 送信は何か書かないと押せない。「次の観点へ」は空欄でも押せる
-      if (isLoading || (!value.trim() && !next)) {
-        return;
-      }
+  const submit = useCallback(() => {
+    if (isLoading || !value.trim()) {
+      return;
+    }
 
-      const startedAt = composeStartedAtRef.current;
-      composeStartedAtRef.current = null;
-      onSubmit(startedAt === null ? 0 : Date.now() - startedAt, next);
-    },
-    [isLoading, value, onSubmit]
-  );
+    const startedAt = composeStartedAtRef.current;
+    composeStartedAtRef.current = null;
+    onSubmit(startedAt === null ? 0 : Date.now() - startedAt);
+  }, [isLoading, value, onSubmit]);
 
   const handleSubmit = useCallback(
     (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
-      submit(false);
+      submit();
     },
     [submit]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!enterSends || event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+        return;
+      }
+      event.preventDefault();
+      submit();
+    },
+    [enterSends, submit]
   );
 
   return (
     <form onSubmit={handleSubmit} className="flex shrink-0 flex-col gap-3">
       <label className="flex flex-col">
-        <span className="sr-only">対話入力</span>
+        <span className="sr-only">あなたの答え</span>
         <textarea
           value={value}
           onChange={(event) => handleChange(event.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={`${FIELD_CLASS} min-h-24`}
         />
       </label>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">{hint}</p>
+        <p className="text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">
+          {hint ? <>{hint} </> : null}
+          {enterSends ? "Enter で送信、Shift + Enter で改行します。" : null}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           {actions}
-          {nextLabel ? (
-            <Button variant="secondary" onClick={() => submit(true)} disabled={isLoading}>
-              {nextLabel}
-            </Button>
-          ) : null}
           <Button type="submit" disabled={isLoading || !value.trim()}>
             {isLoading ? loadingLabel : submitLabel}
           </Button>

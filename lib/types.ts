@@ -11,17 +11,10 @@
 export type SessionStatus = "active" | "completed" | "abandoned";
 
 /**
- * 対話版の進め方。ゼミ内の試用で2つを比べ、導入実験でどちらを使うか決める。
- *
- * fixed    = 進め方 A。各ステージ1ターンで次へ進む
- * flexible = 進め方 B。ステージを終えてよいかをファシリテーター（LLM）が判断して進める。
- *            学習者は「次の観点へ」でいつでも先へ進める。ステージの順序はサーバーが管理する
+ * 進め方。新しいセッションはすべて flexible（ステージを終えてよいかをファシリテーター（LLM）が判断して進める）。
+ * fixed（各ステージ1ターンで次へ進む）は、以前の記録を読むためだけに残している。
  */
 export type TurnMode = "fixed" | "flexible";
-
-export function isTurnMode(value: unknown): value is TurnMode {
-  return value === "fixed" || value === "flexible";
-}
 
 
 export type MessageRole = "user" | "assistant";
@@ -30,7 +23,7 @@ export type MessageRole = "user" | "assistant";
  * ステージ列。質問会議の手順（問題提示 → 問題の明確化 → 問題の再定義 → アクションプランの提示
  * → 質問会議の振り返り）に沿い、問いの観点はコルトハーヘンの ALACT モデルの第2〜4局面から決めている。
  * 第1局面（行為）と第5局面（試行）は PBL の活動そのもので、システムの外にある。
- * サーバーが進行を管理するので、全参加者の問いの順序が揃う。進め方 A ではターン数も揃う。
+ * サーバーが進行を管理するので、全参加者の問いの順序が揃う。
  *
  * problem         問題提示。開始の問いかけ（固定文言）に1回答える
  * fact            問題の明確化（自分の側）
@@ -57,7 +50,7 @@ export type DialogueStage = (typeof DIALOGUE_STAGES)[number];
 /** try_plan は「対話が終わり Try の整理に進める」ことを表す終端ステージ */
 export type Stage = DialogueStage | "try_plan";
 
-/** 進め方 B でファシリテーターが判断するステージ。problem は開始の問いが固定文言だが、扱う問題の判断は行う */
+/** ファシリテーターが判断するステージ。problem は開始の問いが固定文言だが、扱う問題の判断は行う */
 export type FacilitatedStage = "problem" | "fact" | "feeling_other" | "essence";
 
 /** LLM が問いを生成するステージ */
@@ -96,7 +89,7 @@ export type ChatMessage = {
   /** AI が生成した本文なら true。ユーザー発言と固定文言は false */
   generated: boolean;
   /**
-   * 進め方 B の assistant メッセージのみ。この問いを出す前のファシリテーターの判断。
+   * assistant メッセージのみ。この問いを出す前のファシリテーターの判断。
    * 画面の「振り返りの進み方」に、扱っている問題と聞けた観点を出すのに使う
    */
   facilitation?: FacilitationView;
@@ -123,7 +116,7 @@ export type FacilitationView = {
 
 export type SessionSummary = {
   sessionId: string;
-  /** 進め方。進め方を選べるようになる前のセッションでは "fixed" */
+  /** 進め方。新しいセッションは "flexible"。古い記録には "fixed" がある */
   turnMode: TurnMode;
   status: SessionStatus;
   stage: Stage | null;
@@ -137,11 +130,6 @@ export type SessionSummary = {
 };
 
 // --- POST /api/sessions ---
-
-export type CreateSessionRequest = {
-  /** 省略時は "fixed" */
-  turnMode?: TurnMode;
-};
 
 export type CreateSessionResponse = {
   session: SessionSummary;
@@ -157,11 +145,6 @@ export type PostMessageRequest = {
   composeMs?: number;
   /** 常設メモの現在値。毎ターン上書き保存する */
   memo?: string;
-  /**
-   * 進め方 B の「次の観点へ」。true なら、答えずに（または答えたうえで）次のステージへ進む。
-   * 省略時は、進むかどうかをファシリテーターが決める
-   */
-  next?: boolean;
 };
 
 export type PostMessageResponse = {

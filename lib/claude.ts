@@ -181,7 +181,7 @@ export async function generateText(params: {
 
   // 空文字のテキストブロックは API に拒否される。
   // Firestore 側の欠損でここまで空が流れてきても落ちないように弾いておく。
-  // 同じ role が続く場合は1つにまとめる。進め方 B で学習者が空欄のまま次へ進むと、
+  // 同じ role が続く場合は1つにまとめる。締めの前の受け止めと締めの問いのように、
   // assistant の発話が2つ続くことがあるため。
   const messages: Anthropic.MessageParam[] = [];
   for (const turn of params.turns) {

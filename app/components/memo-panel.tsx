@@ -40,13 +40,13 @@ export default function MemoPanel({
           <textarea
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="気づいたこと、次に試したいこと。"
+            placeholder="途中で気づいたこと、次に試したいことを自由に書けます。"
             className={`${FIELD_CLASS} scroll-slim min-h-64 flex-1 lg:min-h-0`}
           />
         </label>
 
         <p className="mt-3 shrink-0 text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">
-          メモは発言を送信したときにサーバーへ保存されます。
+          メモは答えを送信したときに保存され、最後の行動計画づくりにも使われます。
         </p>
       </Panel>
     </aside>

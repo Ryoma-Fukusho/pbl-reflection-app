@@ -14,7 +14,6 @@ import {
   buildContextText,
   facilitatedQuestionInstruction,
   facilitatorInput,
-  stageQuestionInstruction,
   type Facilitation,
 } from "@/lib/prompts";
 import type { MessageInput, SessionRecord, StoredMessage } from "@/lib/repository";
@@ -39,13 +38,6 @@ function toTurns(session: SessionContext, messages: Pick<StoredMessage, "role" |
       text: message.content,
     })),
   ];
-
-  // 進め方 B で空欄のまま次へ進むと、会話が assistant の問いで終わる。
-  // 今のモデルは assistant で終わる会話（prefill）を 400 で拒否するため、
-  // 何が起きたかを user として足す。DB には保存しない。
-  if (turns[turns.length - 1].role === "assistant") {
-    turns.push({ role: "user", text: "（学習者は答えずに次の観点へ進みました）" });
-  }
   return turns;
 }
 
@@ -102,17 +94,6 @@ async function generateOneQuestion(systemInstruction: string, turns: ClaudeTurn[
   return { ...retry, text, latencyMs: first.latencyMs + retry.latencyMs };
 }
 
-/** 進め方 A: 次のステージの問いを生成する */
-export async function generateStageQuestion(
-  session: SessionContext,
-  messages: Pick<StoredMessage, "role" | "content">[],
-  stage: GeneratedStage
-): Promise<MessageInput> {
-  const systemInstruction = [COMMON_SYSTEM, stageQuestionInstruction(stage)].join("\n");
-  const result = await generateOneQuestion(systemInstruction, toTurns(session, messages));
-  return toAssistantMessage(result, stage);
-}
-
 /** ファシリテーターに読ませる書き起こし。どのステージの発話かが分かるようにする */
 function toTranscript(messages: Pick<StoredMessage, "role" | "content" | "stage">[]): string {
   return messages
@@ -138,7 +119,7 @@ function fallbackFacilitation(): Facilitation {
 export type Judgment = NonNullable<MessageInput["facilitation"]>;
 
 /**
- * AI 対話版・進め方 B: ファシリテーターの判断。
+ * ファシリテーターの判断。
  *
  * 直近の学習者の発言までを読ませ、扱っている問題・掘る話・話の状態と、
  * このステージのねらいが満たされたか、新しく出てくるものが尽きたかを判断させる。
@@ -146,8 +127,7 @@ export type Judgment = NonNullable<MessageInput["facilitation"]>;
  */
 export async function judgeStage(
   messages: Pick<StoredMessage, "role" | "content" | "stage" | "facilitation">[],
-  stage: FacilitatedStage,
-  pressedNext: boolean
+  stage: FacilitatedStage
 ): Promise<Judgment> {
   const userTurns = messages.filter((message) => message.role === "user");
   const turnsInStage = userTurns.filter((message) => message.stage === stage).length;
@@ -180,13 +160,12 @@ export async function judgeStage(
     saturated: judgment.saturated,
     previousSaturated: previous?.saturated === true,
     flow: judgment.flow,
-    pressedNext,
   });
   return { ...judgment, judgedStage: stage, turnsInStage, decision, latencyMs: judged.latencyMs, usage: judged.usage };
 }
 
 /**
- * AI 対話版・進め方 B: ファシリテーターの判断を受けて、問いを1つ出す。質問会議のメンバーにあたる。
+ * ファシリテーターの判断を受けて、問いを1つ出す。質問会議のメンバーにあたる。
  *
  * @param stage 問いを出すステージ（判断したステージから進んだ場合は、進んだ先）
  * @param isNewStage このステージが今から始まるなら true
@@ -212,7 +191,7 @@ export async function generateFacilitatedQuestion(
 
 /**
  * 締めの問いの直前に置く受け止めを生成する。締めの問い自体は固定文言のまま。
- * 進め方 B では、直前のステージの判断をこのメッセージに残す（固定文言には判断を付けないため）。
+ * 直前のステージの判断をこのメッセージに残す（固定文言には判断を付けないため）。
  */
 export async function generateAcknowledgement(
   session: SessionContext,
