@@ -142,6 +142,7 @@ export type StageDecision =
  *
  * 本人が自分から話を移したターン（learner_shift）では、ねらいが満たされていても終えない。
  * 本人が一番話したいところでシステムが話を閉じてしまうため。ただし上限は優先する。
+ * 本当の願いでは、この例外を当てはめない。自分の願いへ話が移ることが、このステージのねらいそのものだから。
  *
  * @param step2Turns STEP 2 で答えた回数の合計（今回の答えを含む）
  * @param previousSaturated このステージの1つ前の判断で、出し切っていたか
@@ -161,7 +162,7 @@ export function decideStage(params: {
   if (params.step2Turns >= STEP2_TURN_LIMIT) return "step_limit";
   if (params.turnsInStage >= STAGE_TURN_LIMIT[params.stage]) return "limit";
   if (params.saturated && params.previousSaturated) return "saturated";
-  if (params.goalMet && params.flow !== "learner_shift") return "goal_met";
+  if (params.goalMet && (params.flow !== "learner_shift" || params.stage === "essence")) return "goal_met";
   if (STAGE_NUDGE_AT[params.stage] === params.turnsInStage) return "nudge";
   return "stay";
 }
