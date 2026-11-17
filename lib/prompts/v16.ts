@@ -15,7 +15,7 @@ import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
  * 文面を変えたら PROMPT_VERSION を上げること。sessions と messages に記録され、
  * どの文面で集めたデータかを後から特定するのに使う。
  */
-export const PROMPT_VERSION = "v15";
+export const PROMPT_VERSION = "v16";
 
 /**
  * LLM のふるまい。細かい禁止を積み上げると問いが機械的になるので、研究の骨格として
@@ -62,7 +62,7 @@ export function buildContextText(problem: string): string {
  * 別の組み合わせ）で担保している。本システムでは、プロジェクトにかかわる人に共有しないことがそれにあたる。
  */
 export const OPENING_MESSAGE =
-  "今日のPBL活動、おつかれさまでした。この時間は、あなたの中にあるものを一緒に言葉にしていく時間です。今日の活動で、引っかかっていること・モヤモヤしていることを聞かせてください。";
+  "PBL活動、おつかれさまでした。活動の中で、引っかかっていること・モヤモヤしていることを聞かせてください。";
 
 /**
  * 締めの問い（closing_insight）。回答が sessions.closingInsight に入り、内省の深さを測る主要データになる。
