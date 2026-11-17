@@ -1,7 +1,7 @@
 # プロンプト設計
 
-今のプロンプト（`PROMPT_VERSION = "v14"`）が何を・なぜそう設計しているかをまとめる。
-文面の正本は [lib/prompts/v14.ts](../lib/prompts/v14.ts)、組み立ては [lib/conversation.ts](../lib/conversation.ts)、
+今のプロンプト（`PROMPT_VERSION = "v15"`）が何を・なぜそう設計しているかをまとめる。
+文面の正本は [lib/prompts/v15.ts](../lib/prompts/v15.ts)、組み立ては [lib/conversation.ts](../lib/conversation.ts)、
 ステージのねらいは [lib/stage-guide.ts](../lib/stage-guide.ts)。版ごとの変遷は [history.md](./history.md)。
 
 **導入実験は未実施。** ここに書くことは設計上の理由であって、効果の裏付けではない（§8）。
@@ -189,7 +189,7 @@ Try は、本人が「次に試すこと」として答えた内容を、本人�
 |---|---|---|
 | モデル | `claude-sonnet-5`（`CLAUDE_MODEL`） | `sessions.model`, `messages.model` |
 | effort | `medium`（`CLAUDE_EFFORT`） | `sessions.effort` |
-| プロンプト版 | `v14` | `sessions.promptVersion`, `messages.promptVersion` |
+| プロンプト版 | `v15` | `sessions.promptVersion`, `messages.promptVersion` |
 | アプリ版 | コミット SHA の先頭7桁 | `sessions.appVersion` |
 
 - Claude Sonnet 5 には temperature が無い。effort は思考の量の指定で、出力のばらつきを抑えるものではない。応答は決定的にならない

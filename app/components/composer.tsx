@@ -30,7 +30,7 @@ export default function Composer({
   isLoading,
   placeholder,
   submitLabel,
-  loadingLabel = "考えています",
+  loadingLabel = "応答を生成中",
   hint,
   actions,
 }: {
@@ -113,7 +113,7 @@ export default function Composer({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[length:var(--fs-small)] leading-6 text-[var(--text-muted)]">
           {hint ? <>{hint} </> : null}
-          {enterSends ? "Enter で送信、Shift + Enter で改行します。" : null}
+          {enterSends ? "Enter: 送信 / Shift + Enter: 改行" : null}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {actions}

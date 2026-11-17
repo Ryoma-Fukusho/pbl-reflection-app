@@ -27,12 +27,12 @@ import type { DialogueStage, FacilitatedStage, GeneratedStage } from "@/lib/type
  * これが「ログの改ざんが原理的にできない」という性質の根拠になっている。
  */
 
-type SessionContext = Pick<SessionRecord, "problem" | "memo">;
+type SessionContext = Pick<SessionRecord, "problem">;
 
 function toTurns(session: SessionContext, messages: Pick<StoredMessage, "role" | "content">[]): ClaudeTurn[] {
   const turns: ClaudeTurn[] = [
     // 会話の先頭に前提文脈を1ターン置く。ステージが進んでも最初の問題を見失わないようにするため。
-    { role: "user", text: buildContextText(session.problem, session.memo) },
+    { role: "user", text: buildContextText(session.problem) },
     ...messages.map((message) => ({
       role: message.role === "assistant" ? ("assistant" as const) : ("user" as const),
       text: message.content,

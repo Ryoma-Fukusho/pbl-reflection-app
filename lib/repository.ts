@@ -39,7 +39,6 @@ export type SessionRecord = {
   status: SessionStatus;
   stage: Stage | null;
   problem: string;
-  memo: string;
   closingInsight: string;
   actionPlan: string;
   sessionReview: string;
@@ -100,7 +99,6 @@ export function toSummary(record: SessionRecord): SessionSummary {
     stage: record.stage,
     turnCount: record.turnCount,
     problem: record.problem,
-    memo: record.memo,
     closingInsight: record.closingInsight,
     actionPlan: record.actionPlan,
     sessionReview: record.sessionReview,
@@ -154,7 +152,6 @@ export async function createSession(params: {
     effort: getEffort(),
 
     problem: "",
-    memo: "",
     closingInsight: "",
     actionPlan: "",
     sessionReview: "",
@@ -191,7 +188,6 @@ function toRecord(sessionId: string, data: FirebaseFirestore.DocumentData | unde
     status: (data?.status as SessionStatus) ?? "active",
     stage: (data?.stage as Stage | null) ?? null,
     problem: text(data?.problem),
-    memo: text(data?.memo),
     closingInsight: text(data?.closingInsight),
     actionPlan: text(data?.actionPlan),
     sessionReview: text(data?.sessionReview),

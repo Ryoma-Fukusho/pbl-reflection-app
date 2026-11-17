@@ -47,7 +47,7 @@ export default function ReflectionGuide({
   const currentIndex = stage === "try_plan" ? stages.length : stage ? stages.indexOf(stage) : -1;
 
   return (
-    <Panel className="scroll-slim shrink-0 overflow-y-auto p-5 lg:max-h-[55dvh]">
+    <Panel className="scroll-slim min-h-0 flex-1 overflow-y-auto p-5">
       <h2 className="border-b border-[var(--line)] pb-3 text-[length:var(--fs-title)] font-semibold text-[var(--text)]">
         振り返りの進み方
       </h2>
@@ -56,13 +56,13 @@ export default function ReflectionGuide({
         <dl className="mt-4 flex flex-col gap-2 rounded-[var(--r-md)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-3 py-2">
           {facilitation.focus ? (
             <div>
-              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">いま扱っている問題</dt>
+              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">扱っている問題</dt>
               <dd className="mt-0.5 text-[length:var(--fs-body)] leading-6 text-[var(--text)]">{facilitation.focus}</dd>
             </div>
           ) : null}
           {facilitation.thread ? (
             <div>
-              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">いま掘っている話</dt>
+              <dt className="text-[length:var(--fs-micro)] font-medium text-[var(--text-muted)]">掘り下げている発言</dt>
               <dd className="mt-0.5 text-[length:var(--fs-body)] leading-6 text-[var(--text)]">「{facilitation.thread}」</dd>
             </div>
           ) : null}
@@ -120,9 +120,6 @@ export default function ReflectionGuide({
         })}
       </ol>
 
-      <p className="mt-3 text-[length:var(--fs-micro)] leading-5 text-[var(--text-muted)]">
-        流れは質問会議の手順に、問いの観点はALACTモデルの局面に沿っています。第1局面(行為)は今日のPBL活動そのもの、第5局面(試行)は次のPBL活動です。
-      </p>
 
       {debug && facilitation && stage && stage in STAGE_TURN_LIMIT ? (
         <div className="mt-4 rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] px-3 py-2 text-[length:var(--fs-small)] leading-6 text-[var(--text-secondary)]">

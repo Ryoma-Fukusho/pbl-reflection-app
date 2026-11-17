@@ -15,7 +15,7 @@ import type { FacilitatedStage, GeneratedStage } from "@/lib/types";
  * 文面を変えたら PROMPT_VERSION を上げること。sessions と messages に記録され、
  * どの文面で集めたデータかを後から特定するのに使う。
  */
-export const PROMPT_VERSION = "v14";
+export const PROMPT_VERSION = "v15";
 
 /**
  * LLM のふるまい。細かい禁止を積み上げると問いが機械的になるので、研究の骨格として
@@ -47,9 +47,9 @@ export const QUESTION_RULE =
 /** 生成した返答に問いが2つ以上あったとき、作り直しの指示に足す */
 export const ONE_QUESTION_RETRY = "問いが2つ以上ある返答は使えません。問いを1つだけにして返すこと。";
 
-/** 会話の先頭に置く前提。最初の問題とメモを、ステージが進んでも見失わないようにする */
-export function buildContextText(problem: string, memo: string): string {
-  return [`振り返りの前提（最初に話してくれた問題）: ${problem || "未入力"}`, `学習者のメモ: ${memo || "なし"}`].join("\n");
+/** 会話の先頭に置く前提。最初の問題を、ステージが進んでも見失わないようにする */
+export function buildContextText(problem: string): string {
+  return `振り返りの前提（最初に話してくれた問題）: ${problem || "未入力"}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +242,7 @@ export const ACTION_PLAN_INSTRUCTION = [
  * いずれも試用で実際に起きた崩れへの対処。
  */
 export const TRY_PLAN_INSTRUCTION = [
-  "学習者が「次に試すこと」として答えた内容を中心に、メモもあわせて、次回のPBLで本人が試すことを、学習者自身の言葉をできるだけそのまま使って3項目以内で整理してください。",
+  "学習者が「次に試すこと」として答えた内容を中心に、次回のPBLで本人が試すことを、学習者自身の言葉をできるだけそのまま使って3項目以内で整理してください。",
   "学習者が言っていない行動や方針を作らないこと。「〜してほしかった」という他者への要望を、「〜を伝える」のような本人の行動に書き換えないこと。",
   "本人が試すことを答えていない場合（「特にない」「問題あったっけ？」など）は、「（今回は、次に試すことは決まりませんでした）」とだけ出力すること。",
   "それ以外は「- 」で始まる箇条書きの行だけを出力し、見出しや前置き、太字（**）などの装飾は使わないこと。",

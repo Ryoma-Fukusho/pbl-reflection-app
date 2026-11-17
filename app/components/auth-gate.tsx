@@ -241,8 +241,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           振り返りアシスト
         </h1>
         <p className={BODY_CLASS}>
-          AI の問いに答えながら、今日のPBL活動を一人で振り返るためのツールです。
-          あなたの記録を分けて保存するため、Google アカウントでログインしてください。大学のアドレス・個人のアドレスどちらでも使えます。
+          PBL活動の振り返りを支援する研究用のWebシステムです。
+          記録を回答者ごとに保存するため、Google アカウントでログインしてください。大学・個人どちらのアドレスでも利用できます。
         </p>
 
         {error ? (

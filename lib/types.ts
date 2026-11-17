@@ -122,7 +122,6 @@ export type SessionSummary = {
   stage: Stage | null;
   turnCount: number;
   problem: string;
-  memo: string;
   closingInsight: string;
   actionPlan: string;
   sessionReview: string;
@@ -143,8 +142,6 @@ export type PostMessageRequest = {
   content: string;
   /** 入力を書き始めてから送信するまでの時間(ms)。内省にかけた時間の代理指標 */
   composeMs?: number;
-  /** 常設メモの現在値。毎ターン上書き保存する */
-  memo?: string;
 };
 
 export type PostMessageResponse = {
@@ -154,10 +151,6 @@ export type PostMessageResponse = {
 };
 
 // --- POST /api/sessions/[sessionId]/complete ---
-
-export type CompleteSessionRequest = {
-  memo?: string;
-};
 
 export type CompleteSessionResponse = {
   session: SessionSummary;

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, FIELD_CLASS } from "@/app/components/ui";
 
 /** 振り返りの振り返りの問い。画面の文言として持つ（LLM には渡さない） */
-export const SESSION_REVIEW_QUESTION = "今日の問いの中で、考えるきっかけになったものはありましたか？";
+export const SESSION_REVIEW_QUESTION = "今回の問いのうち、考えるきっかけになったものがあれば記入してください。";
 
 /**
  * 振り返りの振り返り（任意）。質問会議の最後の「質問会議の振り返り」にあたる。
@@ -47,12 +47,12 @@ export default function SessionReview({
           <textarea
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder="なければ書かなくてかまいません。"
+            placeholder="回答を入力"
             className={`${FIELD_CLASS} min-h-20`}
           />
           <div className="flex justify-end">
             <Button type="submit" variant="secondary" disabled={isSending || !value.trim()}>
-              {isSending ? "送信中" : "送る"}
+              {isSending ? "送信中" : "送信"}
             </Button>
           </div>
         </form>

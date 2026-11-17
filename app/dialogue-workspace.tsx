@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, useAuth } from "@/app/components/auth-gate";
 import ChatLog, { TryPlanCard } from "@/app/components/chat-log";
 import Composer from "@/app/components/composer";
-import MemoPanel from "@/app/components/memo-panel";
 import ReflectionGuide from "@/app/components/reflection-guide";
 import SessionReview from "@/app/components/session-review";
 import { STAGE_GUIDE } from "@/lib/stage-guide";
@@ -32,31 +31,26 @@ const STORAGE_PREFIX = "pbl-reflection-dialogue:v1";
 
 
 /**
- * 開始画面で見せる流れ。初めて使う人向けに、ステージ名ではなく「何をするか」で4つにまとめる。
+ * 開始画面で見せる流れ。ステージ名ではなく、回答者がすることで4つにまとめる。
  * ステージごとの説明は、始めたあと右の「振り返りの進み方」に出る。
  */
 const START_STEPS: { title: string; description: string }[] = [
-  { title: "気になっていることを書く", description: "今日の活動で引っかかっていること、モヤモヤしていることを書きます。" },
-  {
-    title: "問いに答えて振り返る",
-    description: "そのとき何があったか、相手はどう思っていたか、自分は本当はどうしたかったかを聞かれます。",
-  },
-  { title: "最初の問題を見直す", description: "最初に書いた問題が、いまどう見えるかを書きます。" },
-  { title: "次に試すことを決める", description: "あなたの言葉のまま、次の活動での行動計画にまとめます。" },
+  { title: "気になったことの記入", description: "今日の活動で引っかかっている点を記入します。" },
+  { title: "問いへの回答", description: "事実、相手の視点、本当の願いの順に問いが提示されます。" },
+  { title: "問題の見直し", description: "最初に記入した問題について、現在の見方を記入します。" },
+  { title: "次に試すことの記入", description: "次の活動で試すことを記入し、行動計画として整理します。" },
 ];
 
 /** 開始画面の注意書き。共有範囲の書き方は導入実験の事前説明と揃える */
 const START_NOTES = [
-  "正解はありません。短い答えや「わからない」でもかまいません。",
-  "所要時間はおよそ10〜15分で、答えるのは8回前後です。",
-  "内容は、プロジェクトにかかわる教員やチームメンバーには共有されません。研究データとして記録し、個人を特定できる情報と切り離して研究者だけが見ます。",
-  "途中で気づいたことは、右のメモ欄に自由に書けます。途中でやめるときは「中断する」を押してください。",
+  "所要時間は10〜15分程度、回答は8回前後です。",
+  "回答内容は研究データとして記録します。プロジェクトにかかわる教員・チームメンバーには共有しません。個人を特定できる情報と切り離し、研究者のみが閲覧します。",
+  "途中で終了する場合は「中断する」を押してください。",
 ];
 
 type Stored = {
   session: SessionSummary;
   messages: ChatMessage[];
-  memo: string;
   /** 最後に保存した時刻（ミリ秒）。画面の状態が変わるたびに更新する */
   savedAt: number;
 };
@@ -80,7 +74,6 @@ function readStored(storageKey: string): Stored | null {
     return {
       session: parsed.session,
       messages: parsed.messages,
-      memo: typeof parsed.memo === "string" ? parsed.memo : "",
       savedAt: parsed.savedAt,
     };
   } catch {
@@ -95,8 +88,6 @@ export default function DialogueWorkspace() {
   const [hydrated, setHydrated] = useState(false);
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [memo, setMemo] = useState("");
-  const [memoDirty, setMemoDirty] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -116,7 +107,6 @@ export default function DialogueWorkspace() {
       if (stored) {
         setSession(stored.session);
         setMessages(stored.messages);
-        setMemo(stored.memo);
       }
       setHydrated(true);
     });
@@ -126,18 +116,16 @@ export default function DialogueWorkspace() {
     if (!hydrated) return;
 
     if (session) {
-      window.localStorage.setItem(storageKey, JSON.stringify({ session, messages, memo, savedAt: Date.now() } satisfies Stored));
+      window.localStorage.setItem(storageKey, JSON.stringify({ session, messages, savedAt: Date.now() } satisfies Stored));
     } else {
       window.localStorage.removeItem(storageKey);
     }
-  }, [hydrated, storageKey, session, messages, memo]);
+  }, [hydrated, storageKey, session, messages]);
 
   /** 画面とローカル下書きを初期状態に戻す。サーバーへの通知は行わない。 */
   const clearWorkspace = useCallback(() => {
     setSession(null);
     setMessages([]);
-    setMemo("");
-    setMemoDirty(false);
     setInput("");
     setError("");
     window.localStorage.removeItem(storageKey);
@@ -169,8 +157,6 @@ export default function DialogueWorkspace() {
       const data = await postJson<CreateSessionResponse>("/api/sessions", {});
       setSession(data.session);
       setMessages(data.messages);
-      setMemo("");
-      setMemoDirty(false);
       setInput("");
     } catch (startError) {
       setError(startError instanceof Error ? startError.message : "セッションを開始できませんでした。");
@@ -204,7 +190,7 @@ export default function DialogueWorkspace() {
       try {
         const data = await postJson<PostMessageResponse>(
           `/api/sessions/${session.sessionId}/messages`,
-          { content, composeMs, memo }
+          { content, composeMs }
         );
 
         setMessages((current) => [
@@ -212,7 +198,6 @@ export default function DialogueWorkspace() {
           ...data.messages,
         ]);
         setSession(data.session);
-        setMemoDirty(false);
       } catch (sendError) {
         setMessages((current) => current.filter((message) => message.id !== optimistic.id));
         setInput(content);
@@ -221,7 +206,7 @@ export default function DialogueWorkspace() {
         setIsLoading(false);
       }
     },
-    [session, isLoading, input, messages.length, memo, postJson, handleApiError]
+    [session, isLoading, input, messages.length, postJson, handleApiError]
   );
 
   const completeSession = useCallback(async () => {
@@ -232,17 +217,16 @@ export default function DialogueWorkspace() {
     try {
       const data = await postJson<CompleteSessionResponse>(
         `/api/sessions/${session.sessionId}/complete`,
-        { memo }
+        {}
       );
       setSession(data.session);
       setMessages((current) => [...current, ...data.messages]);
-      setMemoDirty(false);
     } catch (completeError) {
-      handleApiError(completeError, "行動計画の整理に失敗しました。もう一度押してください。");
+      handleApiError(completeError, "行動計画の整理に失敗しました。再度実行してください。");
     } finally {
       setIsLoading(false);
     }
-  }, [session, isLoading, memo, postJson, handleApiError]);
+  }, [session, isLoading, postJson, handleApiError]);
 
   /** 振り返りの振り返り（任意）を送る。Try の後に出す */
   const submitReview = useCallback(
@@ -322,10 +306,10 @@ export default function DialogueWorkspace() {
               <div className="flex flex-col gap-5">
                 <div>
                   <h2 className="text-[length:var(--fs-title)] font-semibold text-[var(--text)]">
-                    今日の活動を、一人で振り返る
+                    PBL活動の振り返り
                   </h2>
                   <p className="mt-2 text-[length:var(--fs-body)] leading-7 text-[var(--text-secondary)]">
-                    AI の問いに答えながら、今日のPBL活動で引っかかっていることを振り返ります。答えは、あなたの言葉のままで大丈夫です。
+                    今日のPBL活動について、提示される問いに順に回答します。
                   </p>
                 </div>
 
@@ -362,7 +346,7 @@ export default function DialogueWorkspace() {
 
                 <div className="border-t border-[var(--line)] pt-4">
                   <Button onClick={() => void startSession()} disabled={isLoading || !hydrated}>
-                    {isLoading ? "準備しています" : "振り返りを始める"}
+                    {isLoading ? "準備中" : "開始する"}
                   </Button>
                 </div>
               </div>
@@ -383,11 +367,11 @@ export default function DialogueWorkspace() {
                     tone="attention"
                     action={
                       <Button onClick={() => void completeSession()} disabled={isLoading}>
-                        {isLoading ? "まとめています" : "行動計画をまとめる"}
+                        {isLoading ? "整理中" : "行動計画を整理する"}
                       </Button>
                     }
                   >
-                    対話はここまでです。答えてくれた「次に試すこと」を、あなたの言葉のまま行動計画にまとめます。
+                    対話は以上です。「次に試すこと」への回答を、行動計画として整理します。
                   </Notice>
                 ) : null}
 
@@ -402,7 +386,7 @@ export default function DialogueWorkspace() {
                       </Button>
                     }
                   >
-                    振り返りが完了しました。おつかれさまでした。記録は保存されています。
+                    振り返りは完了しました。記録は保存されています。
                   </Notice>
                 ) : null}
 
@@ -412,12 +396,12 @@ export default function DialogueWorkspace() {
                     onChange={setInput}
                     onSubmit={(composeMs) => void sendMessage(composeMs)}
                     isLoading={isLoading}
-                    placeholder="思ったことをそのまま書いてください。"
+                    placeholder="回答を入力"
                     submitLabel="送信"
                     hint={
                       isDiggingStage && facilitation?.decision === "nudge" && facilitation.judgedStage === stage
-                        ? "この観点は、次の答えで一区切りです。"
-                        : "短い答えでも大丈夫です。"
+                        ? "この観点は、次の回答で終了します。"
+                        : undefined
                     }
                     actions={
                       <Button variant="quiet" onClick={() => void abandonWorkspace()}>
@@ -438,16 +422,6 @@ export default function DialogueWorkspace() {
               facilitation={facilitation}
               turnsInStage={turnsInStage}
               debug={debug}
-            />
-          ) : null}
-          {session ? (
-            <MemoPanel
-              value={memo}
-              onChange={(next) => {
-                setMemo(next);
-                setMemoDirty(true);
-              }}
-              saveState={memoDirty ? "pending" : "saved"}
             />
           ) : null}
         </div>

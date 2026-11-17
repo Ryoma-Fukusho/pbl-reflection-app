@@ -10,7 +10,7 @@ import {
   toChatMessage,
   toSummary,
 } from "@/lib/repository";
-import { conflict, errorResponse, notFound, readJsonBody, readString } from "@/lib/route-utils";
+import { conflict, errorResponse, notFound } from "@/lib/route-utils";
 import type { CompleteSessionResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +30,6 @@ export async function POST(
   }
 
   const { sessionId } = await ctx.params;
-  const body = await readJsonBody(request);
-  const memo = readString(body?.memo);
 
   try {
     const session = await getOwnedSession(sessionId, auth.user.uid);
@@ -51,7 +49,7 @@ export async function POST(
       return conflict("対話の記録がないため Try を生成できません。");
     }
 
-    const context = { problem: session.problem, memo: memo || session.memo };
+    const context = { problem: session.problem };
 
     // Try のメッセージには常に stage: "try_plan" を付ける。
     // 全文の記録としては messages に残しつつ、UI ではこの印を頼りに
@@ -64,7 +62,6 @@ export async function POST(
       messages: [plan],
       sessionPatch: {
         tryPlan: plan.content,
-        memo: context.memo,
         ...completionPatch(session.startedAt),
       },
     });
@@ -72,7 +69,6 @@ export async function POST(
     return Response.json({
       session: {
         ...toSummary(session),
-        memo: context.memo,
         status: "completed",
         tryPlan: plan.content,
       },

@@ -42,7 +42,7 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 | `POST /api/sessions/[id]/review` | 振り返りの振り返り（任意）を保存する。完了後だけ受け付ける |
 | `POST /api/sessions/[id]/abandon` | 「中断する」を押したときに離脱として記録する |
 
-画面は2列。左が対話、右が「振り返りの進み方」（[reflection-guide.tsx](../app/components/reflection-guide.tsx)）とメモ。
+画面は2列。左が対話、右が「振り返りの進み方」（[reflection-guide.tsx](../app/components/reflection-guide.tsx)）。画面の文言は、研究用のシステムとして淡々と書く（励ましや親しげな言い回しは入れない）。
 
 ### 対話の進み方
 
@@ -86,7 +86,7 @@ sessions/{sessionId}
   stage                                # 今のステージ。完了前は try_plan で止まる
   promptVersion, appVersion, model, effort   # どの条件で集めたデータか
   problem                              # 開始の問いかけへの回答（最初の問題）。評価の起点
-  memo
+  memo                                 # 古い記録のみ: 以前あったメモ欄の内容
   closingInsight                       # 締めの問いへの回答。主な分析対象
   actionPlan                           # 次に試すことへの回答
   sessionReview, reviewedAt            # 振り返りの振り返り（任意。Try の後に送られる）

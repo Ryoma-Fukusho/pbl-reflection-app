@@ -75,7 +75,6 @@ export async function POST(
     return badRequest("入力が空です。");
   }
 
-  const memo = readString(body.memo);
   const composeMs = typeof body.composeMs === "number" && body.composeMs >= 0 ? body.composeMs : undefined;
 
   try {
@@ -107,7 +106,6 @@ export async function POST(
     // 最初の問題は、後の問いの前提文脈として使うので別に持つ
     const updated = {
       problem: currentStage === "problem" ? content : session.problem,
-      memo: memo || session.memo,
     };
 
     const outgoing: MessageInput[] = [userMessage];
@@ -135,7 +133,6 @@ export async function POST(
       stage: next,
       turnCount,
       problem: updated.problem,
-      memo: updated.memo,
     };
 
     // 固定文言のステージへの回答を、セッションの対応フィールドに写す。
