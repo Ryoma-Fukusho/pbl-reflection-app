@@ -4,6 +4,7 @@ PBL の個人の振り返りを、LLM との対話で支援する Web システ�
 
 - [docs/design.md](docs/design.md): システムの構成、データモデル、セットアップ
 - [docs/prompt-design.md](docs/prompt-design.md): プロンプトの設計
+- [docs/deploy.md](docs/deploy.md): Vercel への公開手順
 - [docs/todo.md](docs/todo.md): 残っている作業
 - [docs/history.md](docs/history.md): ここまでの経緯
 

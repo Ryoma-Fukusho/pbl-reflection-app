@@ -15,10 +15,8 @@
 
 ## 3. 人に使ってもらう前に
 
-- Vercel の Environment Variables に `.env.local` の値を全部登録し、再デプロイする（`NEXT_PUBLIC_*` はビルド時に焼き込まれる）
-- Firebase の承認済みドメインに Vercel のドメインを追加する（忘れると本番だけログインできない）
-- 上の2つより前に `main` へ push しない（ログインできない状態でデプロイされる）
-- Firestore で一周分の記録を確かめる: `seq` が欠番なく並ぶ／`closing_insight` が `generated: false`／`sessions` にメールアドレスが無い／`promptVersion`・`model`・`effort`・`turnMode` が入っている
+- [deploy.md](./deploy.md) の手順で Vercel に公開する（環境変数とFirebaseの承認済みドメインを済ませてから `main` に反映する）
+- 公開後に一周し、deploy.md §6 の項目を Firestore の記録で確かめる
 
 ## 4. 研究として決めること
 

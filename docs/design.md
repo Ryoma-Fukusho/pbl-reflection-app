@@ -127,7 +127,7 @@ sessions/{sessionId}/messages/{messageId}
 
 ## 5. 環境変数とセットアップ
 
-`.env.local`（git に上げない）と Vercel の Environment Variables の両方に同じ値を入れる。項目は [.env.example](../.env.example)。
+`.env.local`（git に上げない）と Vercel の Environment Variables の両方に同じ値を入れる。項目は [.env.example](../.env.example)。Vercel で公開する手順は [deploy.md](./deploy.md)。
 
 | 変数 | 中身 | 注意 |
 |---|---|---|
