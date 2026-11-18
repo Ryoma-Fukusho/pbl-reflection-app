@@ -271,3 +271,5 @@ v13 を手元で一周したところ、全体で答えたのは9回になり、
 
 `main` に反映して Vercel で公開したところ、ログインはできるが API がすべて 500 になった。Vercel のログは `ERR_REQUIRE_ESM: require() of ES Module .../jose/dist/webapi/index.js from .../jwks-rsa/src/utils.js`。firebase-admin のトークン検証が使う `jose` が ES Module のみで、Node 22.12 未満では `require` で読み込めない。手元は Node 22.20 なので起きなかった。`package.json` の `engines.node` を `22.x` にして、Vercel の Node を固定した。
 
+Node を 22.x に固定しても、Vercel 上では同じエラーのままだった。firebase-admin 14 は jwks-rsa 4 → jose 6（ES Module のみ）を使う。firebase-admin を 13 系に下げ（jwks-rsa 3 → jose 4。従来の形式でも配布されている）、Node の設定に左右されないようにした。このアプリが使う機能（初期化・Firestore・トークン検証）は 13 系でも同じ書き方で動く。
+
