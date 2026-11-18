@@ -143,6 +143,7 @@ Vercel の **Deployments** で、最新のデプロイが **Ready** になれば
 
 | 症状 | 原因の候補 | 対処 |
 |---|---|---|
+| ログインはできるが「開始する」で「通信に失敗しました」。ログに `ERR_REQUIRE_ESM`（`jose` … `jwks-rsa`） | Vercel の Node.js が古い。firebase-admin が使う `jose` は ES Module のみで、Node 22.12 以降でないと読み込めない | `package.json` の `engines.node` を `22.x` に固定してある。消さないこと |
 | ログインのポップアップがすぐ閉じる / `auth/unauthorized-domain` | 承認済みドメインに Vercel のドメインがない | 手順 4 |
 | ログイン画面が出ない、画面が真っ白 | `NEXT_PUBLIC_FIREBASE_*` が無い、または変えたのに再デプロイしていない | 手順 2 のあと Redeploy |
 | ログインはできるが「開始する」でエラー | `FIREBASE_*` の値が違う（特に秘密鍵のクォート） | 手順 2 の貼り方を見直して Redeploy |

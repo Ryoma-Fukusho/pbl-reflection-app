@@ -267,3 +267,7 @@ v13 を手元で一周したところ、全体で答えたのは9回になり、
 
 開始の問いかけの「この時間は、あなたの中にあるものを一緒に言葉にしていく時間です」が、画面の文言と同じく AI が書いたような違和感を与えていた。「PBL活動、おつかれさまでした。活動の中で、引っかかっていること・モヤモヤしていることを聞かせてください。」にした。全員に同じ文面で出す固定文言なので、版を上げた。
 
+## 2026-11-18: 公開環境で Node.js の版を 22 に固定した
+
+`main` に反映して Vercel で公開したところ、ログインはできるが API がすべて 500 になった。Vercel のログは `ERR_REQUIRE_ESM: require() of ES Module .../jose/dist/webapi/index.js from .../jwks-rsa/src/utils.js`。firebase-admin のトークン検証が使う `jose` が ES Module のみで、Node 22.12 未満では `require` で読み込めない。手元は Node 22.20 なので起きなかった。`package.json` の `engines.node` を `22.x` にして、Vercel の Node を固定した。
+
